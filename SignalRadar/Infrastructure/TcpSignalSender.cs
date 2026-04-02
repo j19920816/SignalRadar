@@ -36,8 +36,15 @@ namespace QuantConnect.Algorithm.CSharp.Infrastructure
                 MaxPacketSize = 4 * 1024 * 1024,
                 AutoReconnect = true
             };
+            _client.OnConnected += Client_OnConnected;
+
 
             await _client.ConnectAsync(_host, _port);
+        }
+
+        private void Client_OnConnected(NetClient netClient)
+        {
+            Console.WriteLine("[TcpSignalSender] 已連上 Server");
         }
 
         public async Task SendAsync(SignalMessage signal)

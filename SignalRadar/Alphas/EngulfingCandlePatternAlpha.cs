@@ -17,8 +17,10 @@ namespace QuantConnect.Algorithm.CSharp.Alphas
     /// </summary>
     public class EngulfingCandlePatternAlpha : AlphaModel, ISignalAlpha
     {
+        private System.TimeSpan _timeSpan = System.TimeSpan.FromHours(1);
         public string StrategyId => "EngulfingCandle_1h";
         public string TimeFrame => "1h";
+
 
         // 每個 Symbol 各自維護一組指標與 K 棒視窗
         private readonly Dictionary<Symbol, EngulfingData> _data = new();
@@ -67,11 +69,11 @@ namespace QuantConnect.Algorithm.CSharp.Alphas
 
                 // value > 0：看漲吞噬（陽線完全吞噬前一根陰線）→ 做多訊號
                 if (value > 0)
-                    yield return Insight.Price(symbol, System.TimeSpan.FromDays(365), InsightDirection.Up);
+                    yield return Insight.Price(symbol, _timeSpan, InsightDirection.Up);
 
                 // value < 0：看跌吞噬（陰線完全吞噬前一根陽線）→ 做空訊號
                 else if (value < 0)
-                    yield return Insight.Price(symbol, System.TimeSpan.FromDays(365), InsightDirection.Down);
+                    yield return Insight.Price(symbol, _timeSpan, InsightDirection.Down);
             }
         }
 

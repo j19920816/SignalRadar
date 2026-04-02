@@ -36,6 +36,11 @@ namespace QuantConnect.Algorithm.CSharp.Execution
                 var symbol = target.Symbol;
                 var holding = algorithm.Portfolio[symbol];
 
+                // 已有倉位時只接受平倉訊號（target.Quantity == 0 來自 RiskModel）
+                // 忽略新的進場訊號，等出場後才重新進場
+                if (holding.Invested && target.Quantity != 0)
+                    continue;
+
                 // diff > 0 → 需要買進（開多 or 平空）
                 // diff < 0 → 需要賣出（開空 or 平多）
                 // diff = 0 → 倉位已達目標，不動作
