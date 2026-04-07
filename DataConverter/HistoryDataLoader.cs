@@ -18,7 +18,7 @@ namespace DataConverter
 
                 var queryCommand = $"select * from {symbol}_{resolution}s_1 Where TimeData between {Web.GenerateTimeStamp(DateTime.SpecifyKind(startDatetime, DateTimeKind.Utc))} and {Web.GenerateTimeStamp(DateTime.SpecifyKind(endDateTime, DateTimeKind.Utc))} order by TimeData ASC";
 
-                var builder = new SqlConnectionStringBuilder(DbConfig.GetConnectionString());
+                var builder = new SqlConnectionStringBuilder(DbConfig.G_Config.GetConnectionString());
                 var dataTable = SelectDataTable(queryCommand, builder.ConnectionString);
 
                 Console.WriteLine($"[{symbol}] 查詢到 {dataTable.Rows.Count} 筆資料");

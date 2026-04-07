@@ -14,6 +14,8 @@ var startDate = DateTime.ParseExact(args[0], "yyyyMMdd", null);
 var endDate = DateTime.ParseExact(args[1], "yyyyMMdd", null);
 var symbolsFile = args[2];
 
+
+symbolsFile = Path.Combine(AppContext.BaseDirectory, symbolsFile);
 if (!File.Exists(symbolsFile))
 {
     Console.WriteLine($"找不到檔案：{symbolsFile}");
@@ -21,7 +23,11 @@ if (!File.Exists(symbolsFile))
 }
 
 var symbols = File.ReadAllLines(symbolsFile).Select(s => s.Trim()).Where(s => !string.IsNullOrEmpty(s)).ToArray();
-var dataFolder = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, @"..\..\..\..\..\SignalRadar\data\"));
+
+DbConfig.G_Config.Load();
+var dataFolder = DbConfig.G_Config.DataFolder;
+if (!dataFolder.EndsWith(Path.DirectorySeparatorChar))
+    dataFolder += Path.DirectorySeparatorChar;
 
 SecurityType securityType = SecurityType.Crypto;
 if (args.Length >= 4)

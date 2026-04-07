@@ -7,6 +7,7 @@
         <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
         <DefaultItemExcludes>$(DefaultItemExcludes);backtests/*/code/**;live/*/code/**;optimizations/*/code/**</DefaultItemExcludes>
         <NoWarn>CS0618</NoWarn>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
         <PlatformTarget>AnyCPU</PlatformTarget>
         <Platforms>AnyCPU;x64</Platforms>
     </PropertyGroup>

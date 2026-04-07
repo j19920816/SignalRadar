@@ -28,3 +28,6 @@ storage/
 # 其他
 *.ipynb
 report.html
+/data
+/lean.json
+/DataConverter/config.json
