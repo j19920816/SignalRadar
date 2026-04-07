@@ -1,5 +1,5 @@
 using Giraffy.Util;
-using QuantConnect.Algorithm.CSharp.Infrastructure;
+using QuantConnect.Algorithm.CSharp.Network;
 using QuantConnect.Algorithm.CSharp.Interfaces;
 using QuantConnect.Algorithm.CSharp.Signals;
 using QuantConnect.Algorithm.Framework.Execution;

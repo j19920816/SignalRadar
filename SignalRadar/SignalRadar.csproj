@@ -12,7 +12,13 @@
         <Platforms>AnyCPU;x64</Platforms>
     </PropertyGroup>
     <ItemGroup>
+      <Compile Remove="backtests\**" />
+      <EmbeddedResource Remove="backtests\**" />
+      <None Remove="backtests\**" />
+    </ItemGroup>
+    <ItemGroup>
       <None Remove="Giraffy.dll" />
+      <None Remove="Research.ipynb" />
     </ItemGroup>
     <ItemGroup>
         <PackageReference Include="Binance.Net" Version="12.11.0" />

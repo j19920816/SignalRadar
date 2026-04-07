@@ -3,7 +3,8 @@ using Giraffy.CryptoExchange;
 using Giraffy.CryptoExchange.Common;
 using QuantConnect.Algorithm.CSharp.Alphas;
 using QuantConnect.Algorithm.CSharp.Execution;
-using QuantConnect.Algorithm.CSharp.Infrastructure;
+using QuantConnect.Algorithm.CSharp.Backtest;
+using QuantConnect.Algorithm.CSharp.Network;
 using QuantConnect.Algorithm.CSharp.PortfolioConstruction;
 using QuantConnect.Algorithm.CSharp.Risk;
 #endregion
@@ -36,7 +37,7 @@ namespace QuantConnect.Algorithm.CSharp
             if (LiveMode)
             {
                 foreach (var ticker in SymbolsRule.Keys)
-                    AddCryptoFuture(ticker, Resolution.Minute, Market.Binance);
+                    AddCryptoFuture(ticker, Resolution.Tick, Market.Binance);
             }
             else
             {
@@ -61,7 +62,8 @@ namespace QuantConnect.Algorithm.CSharp
             }
 
             // Framework 三層組裝
-            var engulfingCandleAlpha = new EngulfingCandlePatternAlpha();
+            // IWarmUpProvider 實作完成後替換 null
+            var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(warmUpProvider: null);
 
             // 第一層：AlphaModel — 偵測吞噬形態，產生 Insight（Up / Down）
             AddAlpha(engulfingCandleAlpha);
