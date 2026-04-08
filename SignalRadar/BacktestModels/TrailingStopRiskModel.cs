@@ -1,9 +1,11 @@
+using QuantConnect;
+using QuantConnect.Algorithm;
 using QuantConnect.Algorithm.Framework.Alphas;
 using QuantConnect.Algorithm.Framework.Portfolio;
 using QuantConnect.Algorithm.Framework.Risk;
 using System.Collections.Generic;
 
-namespace QuantConnect.Algorithm.CSharp.Risk
+namespace SignalRadar.BacktestModels
 {
     /// <summary>
     /// 兩階段停損模型（僅回測使用）：
@@ -51,7 +53,7 @@ namespace QuantConnect.Algorithm.CSharp.Risk
                     continue;
                 }
 
-                var bar  = kvp.Value.Cache.GetData<Data.Market.TradeBar>();
+                var bar  = kvp.Value.Cache.GetData<QuantConnect.Data.Market.TradeBar>();
                 var high = bar != null ? bar.High : price;
                 var low  = bar != null ? bar.Low  : price;
 

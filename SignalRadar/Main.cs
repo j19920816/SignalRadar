@@ -1,18 +1,21 @@
 #region imports
 using Giraffy.CryptoExchange;
 using Giraffy.CryptoExchange.Common;
+using Giraffy.CryptoExchange.RestCaller;
 using QuantConnect.Algorithm.CSharp.Alphas;
-using QuantConnect.Algorithm.CSharp.Execution;
 using QuantConnect.Algorithm.CSharp.Backtest;
+using QuantConnect.Algorithm.CSharp.Execution;
 using QuantConnect.Algorithm.CSharp.Network;
-using QuantConnect.Algorithm.CSharp.PortfolioConstruction;
-using QuantConnect.Algorithm.CSharp.Risk;
+using QuantConnect.Algorithm.CSharp.Providers;
+using SignalRadar.BacktestModels;
+using SignalRadar.PortfolioConstruction;
 #endregion
 
 namespace QuantConnect.Algorithm.CSharp
 {
     public class SignalRadarAlgorithm : QCAlgorithm
     {
+        public static RestApiCaller ApiCaller;
         public static SymbolsRule SymbolsRule = new SymbolsRule();
         private TcpSignalSender _sender;
 
@@ -20,9 +23,9 @@ namespace QuantConnect.Algorithm.CSharp
         {
             // 取得個幣種規則
             Giraffy.CryptoExchange.Exchange exchange = Giraffy.CryptoExchange.Exchange.BinanceUsdtFuture;
-            ExchangeManager.G_ExchangeManager.TryGetOrAdd(exchange, "", "", out var rest, out _);
-            if (rest != null)
-                SymbolsRule = rest.GetSymbolsAsync().Result;
+            ExchangeManager.G_ExchangeManager.TryGetOrAdd(exchange, "", "", out ApiCaller, out _);
+            if (ApiCaller != null)
+                SymbolsRule = ApiCaller.GetSymbolsAsync().Result;
 
             // 回測區間與帳戶設定
             SetBenchmark(x => 0);
@@ -63,7 +66,7 @@ namespace QuantConnect.Algorithm.CSharp
 
             // Framework 三層組裝
             // IWarmUpProvider 實作完成後替換 null
-            var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(warmUpProvider: null);
+            var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(new BinanceWarmUpProvider());
 
             // 第一層：AlphaModel — 偵測吞噬形態，產生 Insight（Up / Down）
             AddAlpha(engulfingCandleAlpha);

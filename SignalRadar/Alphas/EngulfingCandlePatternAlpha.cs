@@ -7,7 +7,10 @@ using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.Indicators;
 using QuantConnect.Indicators.CandlestickPatterns;
+using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace QuantConnect.Algorithm.CSharp.Alphas
 {
@@ -24,7 +27,7 @@ namespace QuantConnect.Algorithm.CSharp.Alphas
         public string TimeFrame => "1h";
 
         // 每個 Symbol 各自維護一組指標與 K 棒視窗
-        private readonly Dictionary<Symbol, EngulfingData> _data = new();
+        private readonly ConcurrentDictionary<Symbol, EngulfingData> _data = new();
 
         private readonly SymbolFilterModel _symbolFilter = new();
         private readonly IWarmUpProvider _warmUpProvider;
@@ -37,43 +40,51 @@ namespace QuantConnect.Algorithm.CSharp.Alphas
         /// <summary>
         /// 當新的 Symbol 被加入時，為它建立吞噬指標並用小時 K 棒更新。
         /// </summary>
-        public override void OnSecuritiesChanged(QCAlgorithm algorithm, SecurityChanges changes)
+        public override async void OnSecuritiesChanged(QCAlgorithm algorithm, SecurityChanges changes)
         {
-            foreach (var security in changes.AddedSecurities)
+            try
             {
-                var symbol = security.Symbol;
-
-                if (!_data.ContainsKey(symbol))
+                foreach (var security in changes.AddedSecurities)
                 {
-                    var engulfingData = new EngulfingData { Engulfing = new Engulfing() };
-                    _data[symbol] = engulfingData;
+                    var symbol = security.Symbol;
 
-                    if (algorithm.LiveMode)
+                    if (!_data.ContainsKey(symbol))
                     {
-                        // Live（Tick）：Warm-up 餵歷史 1H K 棒讓指標快速 Ready
-                        if (_warmUpProvider != null)
+                        var engulfingData = new EngulfingData { Engulfing = new Engulfing() };
+                        _data[symbol] = engulfingData;
+
+                        if (algorithm.LiveMode)
                         {
-                            foreach (var bar in _warmUpProvider.GetBars(symbol, System.TimeSpan.FromHours(1), 3))
+                            // Live（Tick）：Warm-up 餵歷史 1H K 棒讓指標快速 Ready
+                            if (_warmUpProvider != null)
                             {
-                                engulfingData.Engulfing.Update(bar);
-                                engulfingData.Bars.Add(bar);
+                                var bars = await _warmUpProvider.GetBarsAsync(symbol, TimeSpan.FromHours(1), 3);
+                                foreach (var bar in bars)
+                                {
+                                    engulfingData.Engulfing.Update(bar);
+                                    engulfingData.Bars.Add(bar);
+                                }
                             }
+
+                            // 手動建立 1H 整合器，同時更新指標與 K 棒視窗
+                            var consolidator = new TickConsolidator(TimeSpan.FromHours(1));
+                            consolidator.DataConsolidated += OnDataConsolidated;
+                            algorithm.SubscriptionManager.AddConsolidator(symbol, consolidator);
                         }
+                        else
+                        {
+                            // 回測（Minute）：Lean 自動用 1h TradeBar 更新指標
+                            algorithm.RegisterIndicator(symbol, engulfingData.Engulfing, Resolution.Hour);
+                        }
+                    }
 
-                        // 手動建立 1H 整合器，同時更新指標與 K 棒視窗
-                        var consolidator = new TickConsolidator(System.TimeSpan.FromHours(1));
-                        consolidator.DataConsolidated += OnDataConsolidated;
-                        algorithm.SubscriptionManager.AddConsolidator(symbol, consolidator);
-                    }
-                    else
-                    {
-                        // 回測（Minute）：Lean 自動用 1h TradeBar 更新指標
-                        algorithm.RegisterIndicator(symbol, engulfingData.Engulfing, Resolution.Hour);
-                    }
+                    // 建立 4H 整合器，供過濾器計算流動性、ADX、OBV 指標
+                    await _symbolFilter.RegisterSymbolAsync(algorithm, symbol, algorithm.LiveMode, _warmUpProvider);
                 }
-
-                // 建立 4H 整合器，供過濾器計算流動性、ADX、OBV 指標
-                _symbolFilter.RegisterSymbol(algorithm, symbol, algorithm.LiveMode, _warmUpProvider);
+            }
+            catch (Exception ex)
+            {
+                algorithm.Error($"[EngulfingCandlePatternAlpha] OnSecuritiesChanged 失敗: {ex.Message}");
             }
         }
 

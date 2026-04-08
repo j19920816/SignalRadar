@@ -1,6 +1,7 @@
 using QuantConnect.Data.Market;
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace QuantConnect.Algorithm.CSharp.Interfaces
 {
@@ -12,6 +13,6 @@ namespace QuantConnect.Algorithm.CSharp.Interfaces
         /// <param name="symbol">目標 Symbol</param>
         /// <param name="barSize">K 棒週期（例如 TimeSpan.FromHours(1) 或 TimeSpan.FromHours(4)）</param>
         /// <param name="count">需要的 K 棒數量</param>
-        IEnumerable<TradeBar> GetBars(Symbol symbol, TimeSpan barSize, int count);
+        Task<IEnumerable<TradeBar>> GetBarsAsync(Symbol symbol, TimeSpan barSize, int count);
     }
 }

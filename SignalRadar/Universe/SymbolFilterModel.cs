@@ -1,9 +1,12 @@
 using QuantConnect.Algorithm.CSharp.Interfaces;
+using QuantConnect.Algorithm.CSharp.Providers;
 using QuantConnect.Data.Consolidators;
 using QuantConnect.Data.Market;
 using QuantConnect.Indicators;
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace QuantConnect.Algorithm.CSharp.Universe
 {
@@ -23,8 +26,7 @@ namespace QuantConnect.Algorithm.CSharp.Universe
             public SimpleMovingAverage ObvSma { get; } = new SimpleMovingAverage(10);
         }
 
-        private readonly Dictionary<Symbol, FilterData> _filterData = new();
-        private DateTime _lastFilterTime = DateTime.MinValue;
+        private readonly ConcurrentDictionary<Symbol, FilterData> _filterData = new();
 
         public HashSet<Symbol> ActiveSymbols { get; } = new();
 
@@ -55,13 +57,11 @@ namespace QuantConnect.Algorithm.CSharp.Universe
             }
         }
 
-        public void RegisterSymbol(QCAlgorithm algorithm, Symbol symbol, bool isLive, IWarmUpProvider warmUpProvider = null)
+        public async Task RegisterSymbolAsync(QCAlgorithm algorithm, Symbol symbol, bool isLive, IWarmUpProvider warmUpProvider = null)
         {
-            if (_filterData.ContainsKey(symbol))
-                return;
-
             var filterData = new FilterData();
-            _filterData[symbol] = filterData;
+            if (!_filterData.TryAdd(symbol, filterData))
+                return;
 
             var timespan = TimeSpan.FromHours(4);
             if (isLive)
@@ -69,7 +69,8 @@ namespace QuantConnect.Algorithm.CSharp.Universe
                 // Warm-up：餵歷史 K 棒讓指標快速 Ready
                 if (warmUpProvider != null)
                 {
-                    foreach (var bar in warmUpProvider.GetBars(symbol, timespan, 100))
+                    var bars = await warmUpProvider.GetBarsAsync(symbol, timespan, 100);
+                    foreach (var bar in bars)
                     {
                         var usdtVolume = bar.Volume * bar.Close;
                         filterData.CurrentUsdtVolume = usdtVolume;
@@ -79,6 +80,9 @@ namespace QuantConnect.Algorithm.CSharp.Universe
                         if (filterData.Obv.IsReady)
                             filterData.ObvSma.Update(bar.EndTime, filterData.Obv.Current.Value);
                     }
+
+                    // warm-up 結束後立即執行一次篩選
+                    RunFilter();
                 }
 
                 var consolidator = new TickConsolidator(timespan);
@@ -106,11 +110,7 @@ namespace QuantConnect.Algorithm.CSharp.Universe
             if (filterDate.Obv.IsReady)
                 filterDate.ObvSma.Update(bar.EndTime, filterDate.Obv.Current.Value);
 
-            if (bar.EndTime > _lastFilterTime)
-            {
-                _lastFilterTime = bar.EndTime;
-                RunFilter();
-            }
+            RunFilter();
         }
     }
 }

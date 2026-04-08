@@ -1,8 +1,9 @@
+using QuantConnect.Algorithm;
 using QuantConnect.Algorithm.Framework.Alphas;
 using QuantConnect.Algorithm.Framework.Portfolio;
 using System.Collections.Generic;
 
-namespace QuantConnect.Algorithm.CSharp.PortfolioConstruction
+namespace SignalRadar.PortfolioConstruction
 {
     /// <summary>
     /// 固定比例倉位模型：每個 Symbol 平均分配總資產，比例 = 1 / 註冊 Symbol 數量。
