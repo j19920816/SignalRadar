@@ -38,7 +38,7 @@ namespace QuantConnect.Algorithm.CSharp.Alphas
         }
 
         /// <summary>
-        /// 當新的 Symbol 被加入時，為它建立吞噬指標並用小時 K 棒更新。
+        /// 初始化, 只跑一次, 當新的 Symbol 被加入時，為它建立吞噬指標並用小時 K 棒更新。
         /// </summary>
         public override async void OnSecuritiesChanged(QCAlgorithm algorithm, SecurityChanges changes)
         {

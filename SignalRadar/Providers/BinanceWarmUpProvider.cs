@@ -32,6 +32,15 @@ namespace QuantConnect.Algorithm.CSharp.Providers
                 }
 
             }
+
+            // 丟掉尚未收盤的 K 棒
+            if (result.Count > 0)
+            {
+                var lastBar = result[result.Count - 1];
+                if (lastBar.Time + barInterval > DateTime.UtcNow)
+                    result.RemoveAt(result.Count - 1);
+            }
+
             return result;
         }
     }
