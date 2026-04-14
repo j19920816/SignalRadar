@@ -31,3 +31,5 @@ report.html
 /data
 /lean.json
 /DataConverter/config.json
+/SignalRadar/live
+/DataConverter/Properties/launchSettings.json

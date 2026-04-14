@@ -9,6 +9,7 @@ using QuantConnect.Algorithm.CSharp.Network;
 using QuantConnect.Algorithm.CSharp.Providers;
 using SignalRadar.BacktestModels;
 using SignalRadar.PortfolioConstruction;
+using System;
 #endregion
 
 namespace QuantConnect.Algorithm.CSharp
@@ -39,7 +40,9 @@ namespace QuantConnect.Algorithm.CSharp
             // 回測：只訂閱 BTC / ETH，避免資料量過大
             if (LiveMode)
             {
-                foreach (var ticker in SymbolsRule.Keys)
+                // 測試階段：只訂閱前 10 大幣種
+                var top10 = new[] { "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT" };
+                foreach (var ticker in top10)
                     AddCryptoFuture(ticker, Resolution.Tick, Market.Binance);
             }
             else
