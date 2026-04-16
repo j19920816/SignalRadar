@@ -33,3 +33,6 @@ report.html
 /DataConverter/config.json
 /SignalRadar/live
 /DataConverter/Properties/launchSettings.json
+/Launcher/Data
+/Launcher/config.json
+/SignalRadar/config.json

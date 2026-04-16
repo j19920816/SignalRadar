@@ -2,6 +2,7 @@
 using Giraffy.CryptoExchange;
 using Giraffy.CryptoExchange.Common;
 using Giraffy.CryptoExchange.RestCaller;
+using QuantConnect.Brokerages;
 using QuantConnect.Algorithm.CSharp.Alphas;
 using QuantConnect.Algorithm.CSharp.Backtest;
 using QuantConnect.Algorithm.CSharp.Execution;
@@ -9,7 +10,6 @@ using QuantConnect.Algorithm.CSharp.Network;
 using QuantConnect.Algorithm.CSharp.Providers;
 using SignalRadar.BacktestModels;
 using SignalRadar.PortfolioConstruction;
-using System;
 #endregion
 
 namespace QuantConnect.Algorithm.CSharp
@@ -65,6 +65,9 @@ namespace QuantConnect.Algorithm.CSharp
                 // 手續費：每筆成交金額的 0.2%（嚴格回測用，實際為 0.1%）
                 foreach (var security in Securities.Values)
                     security.SetFeeModel(new PercentageFeeModel(0.002m));
+
+                // 載入歷史資料
+                HistoryDataLoader.Load(BrokerageName.Binance, StartDate, EndDate, SecurityType.CryptoFuture, Securities, Resolution.Minute);
             }
 
             // Framework 三層組裝

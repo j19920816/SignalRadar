@@ -3,9 +3,7 @@
     <Platform Name="Any CPU" />
     <Platform Name="x64" />
   </Configurations>
-  <Project Path="DataConverter/DataConverter.csproj">
-    <Platform Solution="*|x64" Project="x64" />
-  </Project>
+  <Project Path="Launcher/Launcher.csproj" Id="bd5c48bf-cc70-47c5-b78d-5e074411e172" />
   <Project Path="SignalRadar/SignalRadar.csproj">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
