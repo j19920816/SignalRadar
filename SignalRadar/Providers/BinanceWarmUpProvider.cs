@@ -1,10 +1,11 @@
-using QuantConnect.Algorithm.CSharp.Interfaces;
+using SignalRadar.Algorithm.Interfaces;
 using QuantConnect.Data.Market;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using QuantConnect;
 
-namespace QuantConnect.Algorithm.CSharp.Providers
+namespace SignalRadar.Algorithm.Providers
 {
     public class BinanceWarmUpProvider : IWarmUpProvider
     {

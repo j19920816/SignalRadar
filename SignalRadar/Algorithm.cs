@@ -2,17 +2,19 @@
 using Giraffy.CryptoExchange;
 using Giraffy.CryptoExchange.Common;
 using Giraffy.CryptoExchange.RestCaller;
+using QuantConnect;
+using QuantConnect.Algorithm;
 using QuantConnect.Brokerages;
-using QuantConnect.Algorithm.CSharp.Alphas;
-using QuantConnect.Algorithm.CSharp.Backtest;
-using QuantConnect.Algorithm.CSharp.Execution;
-using QuantConnect.Algorithm.CSharp.Network;
-using QuantConnect.Algorithm.CSharp.Providers;
+using SignalRadar.Algorithm.Alphas;
+using SignalRadar.Algorithm.Backtest;
+using SignalRadar.Algorithm.Execution;
+using SignalRadar.Algorithm.Network;
+using SignalRadar.Algorithm.Providers;
 using SignalRadar.BacktestModels;
 using SignalRadar.PortfolioConstruction;
 #endregion
 
-namespace QuantConnect.Algorithm.CSharp
+namespace SignalRadar.Algorithm
 {
     public class SignalRadarAlgorithm : QCAlgorithm
     {
@@ -29,7 +31,6 @@ namespace QuantConnect.Algorithm.CSharp
                 SymbolsRule = ApiCaller.GetSymbolsAsync().Result;
 
             // 回測區間與帳戶設定
-            SetBenchmark(x => 0);
             SetStartDate(2024, 1, 1);
             SetEndDate(2024, 12, 31);
             SetAccountCurrency("USDT");
@@ -43,12 +44,12 @@ namespace QuantConnect.Algorithm.CSharp
                 // 測試階段：只訂閱前 10 大幣種
                 var top10 = new[] { "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT" };
                 foreach (var ticker in top10)
-                    AddCryptoFuture(ticker, Resolution.Tick, Market.Binance);
+                    AddCryptoFuture(ticker, Resolution.Tick, QuantConnect.Market.Binance);
             }
             else
             {
-                AddCryptoFuture("BTCUSDT", Resolution.Minute, Market.Binance);
-                AddCryptoFuture("ETHUSDT", Resolution.Minute, Market.Binance);
+                AddCryptoFuture("BTCUSDT", Resolution.Minute, QuantConnect.Market.Binance);
+                AddCryptoFuture("ETHUSDT", Resolution.Minute, QuantConnect.Market.Binance);
             }
 
             // Live 模式才建立 TCP 連線，回測不需要
@@ -67,7 +68,7 @@ namespace QuantConnect.Algorithm.CSharp
                     security.SetFeeModel(new PercentageFeeModel(0.002m));
 
                 // 載入歷史資料
-                HistoryDataLoader.Load(BrokerageName.Binance, StartDate, EndDate, SecurityType.CryptoFuture, Securities, Resolution.Minute);
+                //HistoryDataLoader.Load(BrokerageName.Binance, StartDate, EndDate, SecurityType.CryptoFuture, Securities, Resolution.Minute);
             }
 
             // Framework 三層組裝

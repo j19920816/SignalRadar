@@ -1,15 +1,3 @@
-data/crypto/
-data/equity/
-data/forex/
-data/future/
-data/futureoption/
-data/index/
-data/indexoption/
-data/option/
-data/cfd/
-data/cryptofuture/
-data/alternative/
-
 # 回測結果
 SignalRadar/backtests/
 
@@ -28,7 +16,6 @@ storage/
 # 其他
 *.ipynb
 report.html
-/data
 /lean.json
 /DataConverter/config.json
 /SignalRadar/live

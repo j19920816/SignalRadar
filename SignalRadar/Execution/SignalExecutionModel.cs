@@ -1,12 +1,13 @@
 using Giraffy.Util;
-using QuantConnect.Algorithm.CSharp.Network;
-using QuantConnect.Algorithm.CSharp.Interfaces;
-using QuantConnect.Algorithm.CSharp.Signals;
+using SignalRadar.Algorithm.Network;
+using SignalRadar.Algorithm.Interfaces;
+using SignalRadar.Algorithm.Signals;
 using QuantConnect.Algorithm.Framework.Execution;
 using QuantConnect.Algorithm.Framework.Portfolio;
 using System;
+using QuantConnect.Algorithm;
 
-namespace QuantConnect.Algorithm.CSharp.Execution
+namespace SignalRadar.Algorithm.Execution
 {
     /// <summary>
     /// 執行層：接收 PortfolioTarget，依模式決定行為。

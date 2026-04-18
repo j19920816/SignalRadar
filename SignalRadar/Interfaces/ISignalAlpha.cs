@@ -1,4 +1,6 @@
-namespace QuantConnect.Algorithm.CSharp.Interfaces
+using QuantConnect;
+
+namespace SignalRadar.Algorithm.Interfaces
 {
     public interface ISignalAlpha
     {

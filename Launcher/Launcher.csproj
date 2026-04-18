@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\SignalRadar\SignalRadar.csproj" />
+    <ProjectReference Include="..\SignalRadar\SignalRadar.Algorithm.csproj" />
   </ItemGroup>
 
   <ItemGroup>

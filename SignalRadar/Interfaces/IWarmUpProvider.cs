@@ -1,9 +1,10 @@
+using QuantConnect;
 using QuantConnect.Data.Market;
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
-namespace QuantConnect.Algorithm.CSharp.Interfaces
+namespace SignalRadar.Algorithm.Interfaces
 {
     public interface IWarmUpProvider
     {

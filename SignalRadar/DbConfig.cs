@@ -2,10 +2,10 @@
 {
     public class DbConfig
     {
-        public const string SERVER = "192.168.0.87";
+        public const string SERVER = "192.168.102.83";
         public const string DATABASE = "BinanceCryptoBar";
         public const string ACCOUNT = "kuan";
-        public const string PASSWORD = "11447756";
+        public const string PASSWORD = "@giant99";
 
         public static string GetConnectionString()
         {

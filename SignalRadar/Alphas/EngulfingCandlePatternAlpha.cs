@@ -1,5 +1,5 @@
-using QuantConnect.Algorithm.CSharp.Interfaces;
-using QuantConnect.Algorithm.CSharp.Universe;
+using SignalRadar.Algorithm.Interfaces;
+using SignalRadar.Algorithm.Universe;
 using QuantConnect.Algorithm.Framework.Alphas;
 using QuantConnect.Data;
 using QuantConnect.Data.Consolidators;
@@ -10,9 +10,10 @@ using QuantConnect.Indicators.CandlestickPatterns;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
-using System.Threading.Tasks;
+using QuantConnect;
+using QuantConnect.Algorithm;
 
-namespace QuantConnect.Algorithm.CSharp.Alphas
+namespace SignalRadar.Algorithm.Alphas
 {
     /// <summary>
     /// 1 小時吞噬形態 Alpha：

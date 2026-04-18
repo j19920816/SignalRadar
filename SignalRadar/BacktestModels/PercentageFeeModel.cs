@@ -3,7 +3,7 @@ using QuantConnect.Orders.Fees;
 using QuantConnect.Securities;
 using System;
 
-namespace QuantConnect.Algorithm.CSharp.Backtest
+namespace SignalRadar.Algorithm.Backtest
 {
     /// <summary>
     /// 固定百分比手續費模型：每筆訂單按成交金額的指定比例收取手續費。

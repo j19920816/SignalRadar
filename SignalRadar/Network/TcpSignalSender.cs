@@ -1,11 +1,11 @@
 using Giraffy.Net;
-using QuantConnect.Algorithm.CSharp.Signals;
+using SignalRadar.Algorithm.Signals;
 using System;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace QuantConnect.Algorithm.CSharp.Network
+namespace SignalRadar.Algorithm.Network
 {
     public class TcpSignalSender : IDisposable
     {

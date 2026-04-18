@@ -1,7 +1,7 @@
 using System;
 using System.Text.Json.Serialization;
 
-namespace QuantConnect.Algorithm.CSharp.Signals
+namespace SignalRadar.Algorithm.Signals
 {
     public enum Side
     {

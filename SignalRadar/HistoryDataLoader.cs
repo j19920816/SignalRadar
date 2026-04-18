@@ -1,5 +1,6 @@
 ﻿using Giraffy.Util;
 using Microsoft.Data.SqlClient;
+using QuantConnect;
 using QuantConnect.Brokerages;
 using QuantConnect.Configuration;
 using QuantConnect.Securities;
@@ -9,7 +10,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Text;
 
-namespace QuantConnect.Algorithm.CSharp
+namespace SignalRadar.Algorithm
 {
     public static class HistoryDataLoader
     {

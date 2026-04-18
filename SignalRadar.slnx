@@ -4,7 +4,7 @@
     <Platform Name="x64" />
   </Configurations>
   <Project Path="Launcher/Launcher.csproj" Id="bd5c48bf-cc70-47c5-b78d-5e074411e172" />
-  <Project Path="SignalRadar/SignalRadar.csproj">
+  <Project Path="SignalRadar/SignalRadar.Algorithm.csproj">
     <Platform Solution="*|x64" Project="x64" />
   </Project>
 </Solution>

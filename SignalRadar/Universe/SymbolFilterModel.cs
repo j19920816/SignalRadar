@@ -1,5 +1,5 @@
-using QuantConnect.Algorithm.CSharp.Interfaces;
-using QuantConnect.Algorithm.CSharp.Providers;
+using SignalRadar.Algorithm.Interfaces;
+using SignalRadar.Algorithm.Providers;
 using QuantConnect.Data.Consolidators;
 using QuantConnect.Data.Market;
 using QuantConnect.Indicators;
@@ -7,8 +7,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using QuantConnect;
+using QuantConnect.Algorithm;
 
-namespace QuantConnect.Algorithm.CSharp.Universe
+namespace SignalRadar.Algorithm.Universe
 {
     public class SymbolFilterModel
     {
