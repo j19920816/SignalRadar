@@ -23,3 +23,5 @@ report.html
 /Launcher/Data
 /Launcher/config.json
 /SignalRadar/config.json
+/.claude
+/SignalRadar/DbConfig.cs
