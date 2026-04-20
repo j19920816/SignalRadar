@@ -5,13 +5,18 @@ using Giraffy.CryptoExchange.RestCaller;
 using QuantConnect;
 using QuantConnect.Algorithm;
 using QuantConnect.Brokerages;
+using QuantConnect.Data;
+using QuantConnect.Data.UniverseSelection;
 using SignalRadar.Algorithm.Alphas;
 using SignalRadar.Algorithm.Backtest;
 using SignalRadar.Algorithm.Execution;
+using SignalRadar.Algorithm.Interfaces;
 using SignalRadar.Algorithm.Network;
 using SignalRadar.Algorithm.Providers;
+using SignalRadar.Algorithm.Universe;
 using SignalRadar.BacktestModels;
 using SignalRadar.PortfolioConstruction;
+using System;
 #endregion
 
 namespace SignalRadar.Algorithm
@@ -21,6 +26,8 @@ namespace SignalRadar.Algorithm
         public static RestApiCaller ApiCaller;
         public static SymbolsRule SymbolsRule = new SymbolsRule();
         private TcpSignalSender _sender;
+        private SymbolFilterModel _symbolFilter;
+        private IWarmUpProvider _warmUpProvider;
 
         public override void Initialize()
         {
@@ -30,21 +37,33 @@ namespace SignalRadar.Algorithm
             if (ApiCaller != null)
                 SymbolsRule = ApiCaller.GetSymbolsAsync().Result;
 
+            // 時區：台北 (UTC+8)
+            SetTimeZone("Asia/Taipei");
+
             // 回測區間與帳戶設定
             SetStartDate(2024, 1, 1);
             SetEndDate(2024, 12, 31);
             SetAccountCurrency("USDT");
             SetCash("USDT", 100000);
 
-            // 交易標的（1 分鐘解析度）
-            // Live：動態訂閱 Binance 合約全部幣種
+            // 交易標的
+            // Live：用 ScheduledUniverseSelectionModel 每 4H 動態篩選 Binance USDT 永續合約
             // 回測：只訂閱 BTC / ETH，避免資料量過大
+            _warmUpProvider = new BinanceWarmUpProvider();
+            _symbolFilter = new SymbolFilterModel();
+
             if (LiveMode)
             {
-                // 測試階段：只訂閱前 10 大幣種
-                var top10 = new[] { "BTCUSDT", "ETHUSDT", "BNBUSDT", "SOLUSDT", "XRPUSDT", "DOGEUSDT", "ADAUSDT", "AVAXUSDT", "LINKUSDT", "DOTUSDT" };
-                foreach (var ticker in top10)
-                    AddCryptoFuture(ticker, Resolution.Tick, QuantConnect.Market.Binance);
+                // 訂閱解析度：Minute；15m / 4H K 棒由 Consolidator 合成
+                // （Tick 也可用，但上次把 300+ 支 Tick 一次灌進 websocket 會被 cancel；
+                //   現在走 UniverseSelection 數量可控，若要換回 Tick，Alpha 的 Consolidator 也要同步改 TickConsolidator）
+                UniverseSettings.Resolution = Resolution.Minute;
+                UniverseSettings.FillForward = true;
+
+                // 啟動立刻篩一次（拉上一個 4H boundary 的收盤資料）+ 之後每日 00/04/08/12/16/20 UTC
+                AddUniverseSelection(new FilteredUniverseSelectionModel(
+                    DateRules.EveryDay(), new StartupTimeRule(),
+                    SymbolsRule, _symbolFilter, _warmUpProvider, UniverseSettings));
             }
             else
             {
@@ -55,8 +74,8 @@ namespace SignalRadar.Algorithm
             // Live 模式才建立 TCP 連線，回測不需要
             if (LiveMode)
             {
-                _sender = new TcpSignalSender("127.0.0.1", 2026);
-                _sender.ConnectAsync().Wait();
+                //_sender = new TcpSignalSender("127.0.0.1", DateTime.Today.Year);
+                //_sender.ConnectAsync().Wait();
             }
             else  
             {
@@ -68,12 +87,11 @@ namespace SignalRadar.Algorithm
                     security.SetFeeModel(new PercentageFeeModel(0.002m));
 
                 // 載入歷史資料
-                //HistoryDataLoader.Load(BrokerageName.Binance, StartDate, EndDate, SecurityType.CryptoFuture, Securities, Resolution.Minute);
+                HistoryDataLoader.Load(BrokerageName.Binance, StartDate, EndDate, SecurityType.CryptoFuture, Securities, Resolution.Minute);
             }
 
             // Framework 三層組裝
-            // IWarmUpProvider 實作完成後替換 null
-            var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(new BinanceWarmUpProvider());
+            var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(_warmUpProvider, _symbolFilter);
 
             // 第一層：AlphaModel — 偵測吞噬形態，產生 Insight（Up / Down）
             AddAlpha(engulfingCandleAlpha);
@@ -83,6 +101,17 @@ namespace SignalRadar.Algorithm
 
             // 第三層：ExecutionModel — 回測下市價單，Live 送 TCP 訊號
             SetExecution(new SignalExecutionModel(_sender, LiveMode, engulfingCandleAlpha));         
+        }
+
+        private DateTime _lastDataLog = DateTime.MinValue;
+
+        public override void OnData(Slice slice)
+        {
+            // 每 10 秒印一次資料流狀態（避免 Tick 級別 log 爆量）
+            if ((DateTime.UtcNow - _lastDataLog).TotalSeconds < 10) 
+                return;
+            _lastDataLog = DateTime.UtcNow;
+            Log($"[OnData] Time={slice.Time:HH:mm:ss} Ticks={slice.Ticks.Count} Bars={slice.Bars.Count} QuoteBars={slice.QuoteBars.Count}");
         }
 
         public override void OnEndOfAlgorithm()

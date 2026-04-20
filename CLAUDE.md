@@ -48,24 +48,53 @@ SignalRadar.slnx
 
 ## Architecture
 
-SignalRadar 是一個基於 **QuantConnect Lean Framework** 的加密貨幣策略雷達。回測模式在 Lean 引擎內下單；Live 模式透過 TCP 將訊號送往外部 WPF 下單機，本身不執行交易。
+SignalRadar 是一個基於 **QuantConnect Lean Framework** 的加密貨幣策略雷達，鎖定 Binance USDT 永續合約。回測模式在 Lean 引擎內下單；Live 模式透過 TCP 把訊號送往外部 WPF 下單機，自己不執行交易。
+
+時區設為 `Asia/Taipei`（UTC+8），但 4H K 棒邊界（00/04/08/12/16/20）仍以 **UTC** 為準，對齊 Binance 的 K 棒收盤。
 
 ### Framework 三層管線（Algorithm.cs 組裝）
 
 ```
-AlphaModel → PortfolioConstructionModel → ExecutionModel
-  產生 Insight     轉成 PortfolioTarget       回測下單 / Live 送 TCP
+UniverseSelection → AlphaModel → PortfolioConstructionModel → ExecutionModel
+  篩出可交易標的   產生 Insight    轉成 PortfolioTarget       回測下單 / Live 送 TCP
 ```
 
-- **AlphaModel**（`Alphas/`）— 策略訊號層。偵測 K 棒形態，產出 `Insight.Up` / `Insight.Down`。實作 `ISignalAlpha` 介面以提供 `StrategyId`、`TimeFrame`、`GetStopPrice()`。
+- **UniverseSelectionModel**（`Universe/FilteredUniverseSelectionModel`）— Live 專用。繼承 `ScheduledUniverseSelectionModel`，**啟動立即**跑一次（拉上一個 4H boundary 的收盤資料做初始篩選）+ 之後每日 UTC 00/04/08/12/16/20 各跑一次。每次從 Giraffy `SymbolsRule` 撈所有 USDT 合約，透過 `SymbolPropertiesDatabase.SetEntry` 即時補註 Lean 不認得的新上幣（避免 `Failed to resolve base currency` 崩潰），再交給 `SymbolFilterModel.RunAsync` 做三層篩選。
+- **AlphaModel**（`Alphas/EngulfingCandlePatternAlpha`）— 策略訊號層。Minute 訂閱 + `TradeBarConsolidator` 合成 15m K 棒，餵 `Engulfing` 指標。Bull Engulfing → `Insight.Up`，Bear Engulfing → `Insight.Down`；發 Insight 前先檢查 symbol 是否在 `_symbolFilter.ActiveSymbols` 內。實作 `ISignalAlpha` 以提供 `StrategyId`、`TimeFrame`、`GetStopPrice()`（回傳前一根 K 棒的 Low 作為止損價）。
 - **PortfolioConstructionModel**（`PortfolioConstruction/FixedPortfolioConstructionModel`）— 將 Insight 轉為目標持倉數量：每個 Symbol 比例 = `1 / Securities.Count`，`quantity = sign × (TotalPortfolioValue × fraction) / price`。
 - **ExecutionModel**（`Execution/SignalExecutionModel`）— 計算倉位差值；回測走 `MarketOrder`，Live 封裝成 `SignalMessage` 經 `TcpSignalSender` 送出。已持倉時只接受平倉訊號（`target.Quantity == 0`），忽略新的進場訊號。
+
+### Universe 篩選流程（Live）
+
+1. **FilteredUniverseSelectionModel.SelectSymbols**（每 4H 觸發一次）
+   - 讀 Lean SPDB 現有的 binance CryptoFuture ticker 清單
+   - 掃 Giraffy `SymbolsRule`，挑出所有 `QuoteAsset == USDT` 的合約
+   - SPDB 沒登記過的 → 用 Giraffy 的 `TickPriceStep` / `QuantityStep` 組 `SymbolProperties`，呼叫 `spdb.SetEntry(...)` 補進去
+   - 產生 candidate `Symbol` 清單
+2. **SymbolFilterModel.RunAsync**（SemaphoreSlim 限制 10 併發 REST）
+   - 每支 candidate 透過 `IWarmUpProvider.GetBarsAsync` 拉 100 根 4H K 棒
+   - 每次重新跑指標 warm-up，不保留狀態（避免 websocket 斷線後指標漂移）
+   - 三層篩選（詳見下方）通過者進入 `ActiveSymbols`
+3. Lean 收到回傳清單後自動 `AddSecurity` / `RemoveSecurity`，觸發 Alpha 的 `OnSecuritiesChanged`
+
+### SymbolFilterModel 三層篩選
+
+| 層 | 條件 | 指標 |
+|---|---|---|
+| 流動性 | 過去 10 根 4H 成交金額均值 ≥ 100 萬 USDT | `VolumeSMA(10)` |
+| 活躍度 | ADX ≥ 35 **且** 當前 4H 成交金額 > 均值 × 1.5 | `ADX(14)` + `CurrentUsdtVolume` |
+| 量能持續性 | OBV > SMA10(OBV) | `OBV` + `OBV_SMA(10)` |
+
+- **Live 路徑**：`RunAsync` 由 `FilteredUniverseSelectionModel` 每 4H 呼叫，用 REST 拉資料跑指標。
+- **回測路徑**：`RegisterSymbol` 由 Alpha 的 `OnSecuritiesChanged` 呼叫，為每個 symbol 掛 4H `TradeBarConsolidator`，靠 Lean 回測 feed 累積指標，每根 4H 收盤後更新 `ActiveSymbols`。
 
 ### 輔助模組
 
 | 路徑 | 用途 |
 |---|---|
-| `Universe/SymbolFilterModel` | 三層標的過濾器（流動性 / ADX 活躍度 / OBV 量能持續性），每 4H 更新 `ActiveSymbols` |
+| `Universe/FilteredUniverseSelectionModel` | Live 專用 `ScheduledUniverseSelectionModel`，每 4H 重新篩選 Binance USDT 永續合約 |
+| `Universe/StartupTimeRule` | `ITimeRule` 實作，啟動立即觸發一次 + 之後每日 UTC 00/04/08/12/16/20 |
+| `Universe/SymbolFilterModel` | 三層標的過濾器（流動性 / ADX 活躍度 / OBV 量能持續性），維護 `ActiveSymbols` |
 | `Providers/BinanceWarmUpProvider` | Live 模式下透過 Binance REST API 取歷史 K 棒，餵指標做 warm-up，會自動丟棄未收盤的最後一根 |
 | `Interfaces/IWarmUpProvider` | warm-up 抽象介面（`GetBarsAsync`） |
 | `Interfaces/ISignalAlpha` | Alpha 需額外提供 StrategyId / TimeFrame / StopPrice |
@@ -78,11 +107,15 @@ AlphaModel → PortfolioConstructionModel → ExecutionModel
 
 ### 關鍵行為差異：Live vs 回測
 
-- **解析度**：Live 訂閱 Tick + 手動建 Consolidator 合成 1H/4H 棒；回測訂閱 Minute 級別 + Lean 自動合成。
-- **標的範圍**：Live 目前測試階段只訂閱前 10 大 USDT 合約（BTC/ETH/BNB/SOL/XRP/DOGE/ADA/AVAX/LINK/DOT）；回測僅 BTC/ETH。
-- **RiskModel / FeeModel**：僅回測啟用，Live 由下單機自行管理。
-- **warm-up**：Live 透過 `IWarmUpProvider` 拉歷史 K 棒初始化指標；回測靠 `HistoryDataLoader` 預先匯出資料到 Lean data-folder。
-- **TCP 連線**：僅 Live 建立 `TcpSignalSender`；回測 `_sender` 為 null。
+| 面向 | Live | 回測 |
+|---|---|---|
+| 訂閱解析度 | `UniverseSettings.Resolution = Minute` + `TradeBarConsolidator` 合成 15m/4H | Minute 訂閱 + Lean 自動合成 |
+| 標的範圍 | `FilteredUniverseSelectionModel` 每 4H 動態篩選所有 USDT 永續合約 | 僅手動 `AddCryptoFuture("BTCUSDT")` / `AddCryptoFuture("ETHUSDT")` |
+| 篩選器驅動方式 | `SymbolFilterModel.RunAsync`（REST + 指標 warm-up） | `SymbolFilterModel.RegisterSymbol`（掛 4H Consolidator） |
+| warm-up | `IWarmUpProvider` 拉歷史 K 棒初始化 Alpha 指標 | `HistoryDataLoader` 先從 SQL Server 匯出資料到 Lean data-folder |
+| Risk / Fee Model | 下單機自行管理，策略端不啟用 | `TrailingStopRiskModel` + `PercentageFeeModel(0.002)` |
+| 下單路徑 | `SignalMessage` → `TcpSignalSender`（127.0.0.1:2026） | Lean `MarketOrder` |
+| 未收盤 K 棒處理 | `BinanceWarmUpProvider` 判斷 `LastOpenTime + barInterval > Now` → 丟棄最後一根 | 不需處理 |
 
 ### 套件與外部依賴
 

@@ -8,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="QuantConnect.Brokerages.Binance" Version="2.5.17654" />
     <PackageReference Include="QuantConnect.Lean" Version="2.5.17654" />
   </ItemGroup>
 
@@ -20,5 +21,9 @@
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
   </ItemGroup>
+
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+    <Exec Command="xcopy /Y /E /I /D &quot;$(ProjectDir)Data&quot; &quot;$(TargetDir)Data&quot;" />
+  </Target>
 
 </Project>

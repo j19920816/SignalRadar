@@ -68,7 +68,16 @@ namespace SignalRadar.Algorithm.Execution
                         StopPrice = stopPrice,
                         Timestamp = Web.GenerateTimeStamp(DateTime.UtcNow),
                     };
-                    _sender.SendAsync(msg).Wait();
+                    algorithm.Log($"[Signal Send] {msg.StrategyId} {msg.Symbol} {msg.Side} TF={msg.TimeFrame} Price={msg.Price} Stop={msg.StopPrice}");
+                    try
+                    {
+                        //_sender.SendAsync(msg).Wait();
+                        algorithm.Log($"[Signal OK  ] {msg.Symbol} {msg.Side} sent\n");
+                    }
+                    catch (Exception ex)
+                    {
+                        algorithm.Error($"[Signal FAIL] {msg.Symbol} {msg.Side} → {ex.GetBaseException().Message}\n");
+                    }
                 }
                 else
                 {
