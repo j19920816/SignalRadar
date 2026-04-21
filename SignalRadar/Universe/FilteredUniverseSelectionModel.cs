@@ -23,15 +23,48 @@ namespace SignalRadar.Algorithm.Universe
     /// </summary>
     public class FilteredUniverseSelectionModel : ScheduledUniverseSelectionModel
     {
+        // Lean 內部會把商品/法幣/CFD 走非 crypto 的 currency conversion 路徑，導致 EnsureCurrencyDataFeed 崩潰
+        // （例如 NATGASUSDT、XPTUSDT、XAUUSDT）。從 SPDB 非加密市場動態推出這類 base asset 清單，
+        // 之後 Binance 再上什麼 SILVERUSDT / PLATINUMUSDT 只要 Lean SPDB 有對應登記就會自動擋下，不用改程式碼。
+        private static readonly Lazy<HashSet<string>> NonCryptoBases = new Lazy<HashSet<string>>(BuildNonCryptoBases);
+
         public FilteredUniverseSelectionModel(
-            IDateRule dateRule,
-            ITimeRule timeRule,
-            SymbolsRule symbolsRule,
-            SymbolFilterModel filter,
-            IWarmUpProvider warmUpProvider,
-            UniverseSettings universeSettings)
+            IDateRule dateRule,ITimeRule timeRule,
+            SymbolsRule symbolsRule,SymbolFilterModel filter,
+            IWarmUpProvider warmUpProvider, UniverseSettings universeSettings)
             : base(dateRule, timeRule, _ => SelectSymbols(symbolsRule, filter, warmUpProvider), universeSettings)
         {
+        }
+
+        private static HashSet<string> BuildNonCryptoBases()
+        {
+            var spdb = SymbolPropertiesDatabase.FromDataFolder();
+            var bases = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // 所有 Lean 登記過非加密資產的 market / SecurityType 組合
+            // (從 Data/symbol-properties/symbol-properties-database.csv 實際存在的組合歸納出來)
+            var markets = new[] { LeanMarket.FXCM, LeanMarket.Oanda, LeanMarket.InteractiveBrokers,
+                                  LeanMarket.NYMEX, LeanMarket.CME, LeanMarket.CBOT, LeanMarket.ICE, LeanMarket.COMEX };
+            var types = new[] { SecurityType.Cfd, SecurityType.Forex, SecurityType.Future, SecurityType.FutureOption };
+
+            foreach (var market in markets)
+            {
+                foreach (var type in types)
+                {
+                    foreach (var kvp in spdb.GetSymbolPropertiesList(market, type))
+                    {
+                        var ticker = kvp.Key.Symbol;
+                        var quote = kvp.Value.QuoteCurrency;
+                        // 多數 cfd/forex 的 ticker 是 base+quote 直接串接（NATGASUSD / XPTUSD / EURUSD），拆出前綴
+                        if (!string.IsNullOrEmpty(quote) && ticker.Length > quote.Length
+                            && ticker.EndsWith(quote, StringComparison.OrdinalIgnoreCase))
+                            bases.Add(ticker.Substring(0, ticker.Length - quote.Length));
+                        else
+                            bases.Add(ticker);
+                    }
+                }
+            }
+            return bases;
         }
 
         private static IEnumerable<Symbol> SelectSymbols(SymbolsRule symbolsRule, SymbolFilterModel filter, IWarmUpProvider warmUpProvider)
@@ -42,9 +75,9 @@ namespace SignalRadar.Algorithm.Universe
             var spdb = SymbolPropertiesDatabase.FromDataFolder();
             var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             foreach (var kvp in spdb.GetSymbolPropertiesList(LeanMarket.Binance, SecurityType.CryptoFuture))
-            {
                 known.Add(kvp.Key.Symbol);
-            }
+
+            var nonCryptoBases = NonCryptoBases.Value;
 
             // 2. 掃 Giraffy SymbolsRule，挑出所有 USDT 計價合約
             //    Lean 不認得的，用 Giraffy 的欄位 (QuoteAsset / QuantityStep / TickPriceStep) 即時補進 SPDB
@@ -58,8 +91,17 @@ namespace SignalRadar.Algorithm.Universe
                 if (!rule.QuoteAsset.Equals("USDT", StringComparison.OrdinalIgnoreCase))
                     continue;
 
+                // 排除交割合約（ticker 含底線，例如 BTCUSDT_260626）
+                if (ticker.Contains('_'))
+                    continue;
+
                 if (!known.Contains(ticker))
                 {
+                    // base asset 是 ISO 4217 貴金屬 / 商品簡稱 / 法幣 → EnsureCurrencyDataFeed 會走商品或換匯路徑崩潰，跳過
+                    var baseAsset = ticker.EndsWith("USDT", StringComparison.OrdinalIgnoreCase) ? ticker.Substring(0, ticker.Length - 4) : ticker;
+                    if (nonCryptoBases.Contains(baseAsset))
+                        continue;
+
                     // Lean 沒登記過 → 依 Giraffy 的規則替它補一筆到 SPDB
                     // TickPriceStep / QuantityStep 是 nullable，取不到就用保守的預設值
                     var tick = rule.TickPriceStep.HasValue ? rule.TickPriceStep.Value : 0.0001m;

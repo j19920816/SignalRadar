@@ -23,12 +23,12 @@ namespace SignalRadar.Algorithm.Alphas
     /// </summary>
     public class EngulfingCandlePatternAlpha : AlphaModel, ISignalAlpha
     {
-        private readonly TimeSpan _timeSpan = TimeSpan.FromMinutes(15);
-        public string StrategyId => "EngulfingCandle_15m";
-        public string TimeFrame => "15";
+        private readonly TimeSpan _timeSpan = TimeSpan.FromMinutes(5);
+        public string StrategyId => "EngulfingCandle";
+        public string TimeFrame => _timeSpan.TotalMinutes.ToString();
 
         // 每個 Symbol 各自維護一組指標與 K 棒視窗
-        private readonly ConcurrentDictionary<Symbol, EngulfingData> _data = new();
+        private readonly ConcurrentDictionary<Symbol, EngulfingData> _engulfingData = new();
 
         private readonly SymbolFilterModel _symbolFilter;
         private readonly IWarmUpProvider _warmUpProvider;
@@ -40,7 +40,7 @@ namespace SignalRadar.Algorithm.Alphas
         }
 
         /// <summary>
-        /// 新符號被加入時為它建立 15m 吞噬指標 + Consolidator。
+        /// 新符號被加入時為它建立吞噬指標 + Consolidator。
         /// Live：先用 REST 歷史 K 棒做 warm-up；回測另外掛 4H Consolidator 給篩選器。
         /// </summary>
         public override async void OnSecuritiesChanged(QCAlgorithm algorithm, SecurityChanges changes)
@@ -50,13 +50,13 @@ namespace SignalRadar.Algorithm.Alphas
                 foreach (var security in changes.AddedSecurities)
                 {
                     var symbol = security.Symbol;
-                    if (_data.ContainsKey(symbol))
+                    if (_engulfingData.ContainsKey(symbol))
                         continue;
 
                     var engulfingData = new EngulfingData { Engulfing = new Engulfing() };
-                    _data[symbol] = engulfingData;
+                    _engulfingData[symbol] = engulfingData;
 
-                    // Live：REST 拉 3 根歷史 15m K 棒餵指標（Minute 訂閱等於即時 warm-up）
+                    // Live：REST 拉 3 根歷史 K 棒餵指標（Minute 訂閱等於即時 warm-up）
                     if (algorithm.LiveMode && _warmUpProvider != null)
                     {
                         var bars = await _warmUpProvider.GetBarsAsync(symbol, _timeSpan, 3);
@@ -67,7 +67,7 @@ namespace SignalRadar.Algorithm.Alphas
                         }
                     }
 
-                    // Minute 訂閱 → 15m Consolidator 合成，兩邊模式共用
+                    // Minute 訂閱 → Consolidator 合成，兩邊模式共用
                     var consolidator = new TradeBarConsolidator(_timeSpan);
                     consolidator.DataConsolidated += OnDataConsolidated;
                     algorithm.SubscriptionManager.AddConsolidator(symbol, consolidator);
@@ -86,35 +86,37 @@ namespace SignalRadar.Algorithm.Alphas
 
         private void OnDataConsolidated(object sender, TradeBar bar)
         {
-            var d = _data[bar.Symbol];
-            d.Engulfing.Update(bar);
-            d.Bars.Add(bar);
-            d.HasNewBar = true;
+            var data = _engulfingData[bar.Symbol];
+            data.Engulfing.Update(bar);
+            data.Bars.Add(bar);
+            data.HasNewBar = true;
         }
 
         /// <summary>
-        /// 每次 Slice 進來都會呼叫，由 HasNewBar 旗標判斷是否有新 15m K 棒可處理。
+        /// 每次 Slice 進來都會呼叫，由 HasNewBar 旗標判斷是否有新 K 棒可處理。
         /// </summary>
         public override IEnumerable<Insight> Update(QCAlgorithm algorithm, Slice data)
         {
-            foreach (var kvp in _data)
+            foreach (var kvp in _engulfingData)
             {
                 var symbol = kvp.Key;
-                var d = kvp.Value;
+                var engulfingData = kvp.Value;
 
-                if (!d.HasNewBar)
+                if (!engulfingData.HasNewBar)
                     continue;
-                d.HasNewBar = false;
+                engulfingData.HasNewBar = false;
 
-                if (!_symbolFilter.ActiveSymbols.Contains(symbol) || !d.Engulfing.IsReady)
+                if (!_symbolFilter.ActiveSymbols.Contains(symbol) /*|| !engulfingData.Engulfing.IsReady*/)
                     continue;
 
-                var value = d.Engulfing.Current.Value;
+                var value = engulfingData.Engulfing.Current.Value;
                 if (value > 0)
                     yield return Insight.Price(symbol, _timeSpan, InsightDirection.Up);
                 else if (value < 0)
                     yield return Insight.Price(symbol, _timeSpan, InsightDirection.Down);
             }
+
+            //algorithm.Log($"[Alpha] Symbols={_data.Count} ActiveSet={_symbolFilter.ActiveSymbols.Count}");
         }
 
         /// <summary>
@@ -123,7 +125,7 @@ namespace SignalRadar.Algorithm.Alphas
         /// </summary>
         public decimal GetStopPrice(Symbol symbol)
         {
-            if (!_data.TryGetValue(symbol, out var d) || !d.Bars.IsReady)
+            if (!_engulfingData.TryGetValue(symbol, out var d) || !d.Bars.IsReady)
                 return 0;
 
             // Bars[0] = 最新，Bars[1] = 前一根

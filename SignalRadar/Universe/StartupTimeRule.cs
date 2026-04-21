@@ -19,9 +19,7 @@ namespace SignalRadar.Algorithm.Universe
         public StartupTimeRule(TimeSpan? startupDelay = null)
         {
             // 延後 5 秒避免與 Lean 內部初始化爭搶
-            _startupTime = DateTime.SpecifyKind(
-                DateTime.UtcNow + (startupDelay.HasValue ? startupDelay.Value : TimeSpan.FromSeconds(5)),
-                DateTimeKind.Utc);
+            _startupTime = DateTime.SpecifyKind(DateTime.UtcNow + (startupDelay.HasValue ? startupDelay.Value : TimeSpan.FromSeconds(5)),DateTimeKind.Utc);
         }
 
         public IEnumerable<DateTime> CreateUtcEventTimes(IEnumerable<DateTime> dates)
@@ -33,15 +31,15 @@ namespace SignalRadar.Algorithm.Universe
 
             foreach (var _ in dates)
             {
-                for (var h = 0; h < 24; h += 4)
+                for (var hour = 0; hour < 24; hour += 4)
                 {
-                    var t = DateTime.SpecifyKind(utcDay.AddHours(h), DateTimeKind.Utc);
-                    if (!startupYielded && _startupTime < t)
+                    var time = DateTime.SpecifyKind(utcDay.AddHours(hour), DateTimeKind.Utc);
+                    if (!startupYielded && _startupTime < time)
                     {
                         yield return _startupTime;
                         startupYielded = true;
                     }
-                    yield return t;
+                    yield return time;
                 }
                 utcDay = utcDay.AddDays(1);
             }

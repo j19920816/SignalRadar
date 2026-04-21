@@ -37,8 +37,8 @@ namespace SignalRadar.PortfolioConstruction
                 decimal sign = insight.Direction == InsightDirection.Up ? 1m :
                                insight.Direction == InsightDirection.Down ? -1m : 0m;
 
-                // 目標數量 = ±（總資產 × 比例）/ 現價
-                var quantity = sign * (algorithm.Portfolio.TotalPortfolioValue * fraction) / price;
+                // 目標數量 = ±（總資產 algorithm.Portfolio.TotalPortfolioValue(先設定10000) × 比例）/ 現價
+                var quantity = sign * (10000 * fraction) / price;
                 yield return new PortfolioTarget(insight.Symbol, quantity);
             }
         }

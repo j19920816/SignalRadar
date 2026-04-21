@@ -36,6 +36,8 @@ namespace SignalRadar.Algorithm.Execution
             {
                 var symbol = target.Symbol;
                 var holding = algorithm.Portfolio[symbol];
+                if (!SignalRadarAlgorithm.SymbolsRule.TryGetValue(symbol.Value, out var rule))
+                    continue;
 
                 // 已有倉位時只接受平倉訊號（target.Quantity == 0 來自 RiskModel）
                 // 忽略新的進場訊號，等出場後才重新進場
@@ -47,7 +49,7 @@ namespace SignalRadar.Algorithm.Execution
                 // diff = 0 → 倉位已達目標，不動作
                 var diff = target.Quantity - holding.Quantity;
 
-                var minQty = SignalRadarAlgorithm.SymbolsRule[symbol].QuantityStep;
+                var minQty = rule.MinTradeQuantity;
                 if (Math.Abs(diff) < minQty)
                     continue;
 
@@ -68,15 +70,15 @@ namespace SignalRadar.Algorithm.Execution
                         StopPrice = stopPrice,
                         Timestamp = Web.GenerateTimeStamp(DateTime.UtcNow),
                     };
-                    algorithm.Log($"[Signal Send] {msg.StrategyId} {msg.Symbol} {msg.Side} TF={msg.TimeFrame} Price={msg.Price} Stop={msg.StopPrice}");
+
                     try
                     {
                         //_sender.SendAsync(msg).Wait();
-                        algorithm.Log($"[Signal OK  ] {msg.Symbol} {msg.Side} sent\n");
+                        algorithm.Log($"[Signal OK  ] {msg.StrategyId} {msg.Symbol} {msg.Side} TimeFrame={msg.TimeFrame} Price={msg.Price} Stop={msg.StopPrice} sent");
                     }
                     catch (Exception ex)
                     {
-                        algorithm.Error($"[Signal FAIL] {msg.Symbol} {msg.Side} → {ex.GetBaseException().Message}\n");
+                        algorithm.Error($"[Signal FAIL] {msg.Symbol} {msg.Side} → {ex.GetBaseException().Message}");
                     }
                 }
                 else

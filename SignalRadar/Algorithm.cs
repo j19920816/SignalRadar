@@ -54,16 +54,13 @@ namespace SignalRadar.Algorithm
 
             if (LiveMode)
             {
-                // 訂閱解析度：Minute；15m / 4H K 棒由 Consolidator 合成
+                // 訂閱解析度： K 棒由 Consolidator 合成
                 // （Tick 也可用，但上次把 300+ 支 Tick 一次灌進 websocket 會被 cancel；
                 //   現在走 UniverseSelection 數量可控，若要換回 Tick，Alpha 的 Consolidator 也要同步改 TickConsolidator）
-                UniverseSettings.Resolution = Resolution.Minute;
-                UniverseSettings.FillForward = true;
+                UniverseSettings.Resolution = Resolution.Second;
 
                 // 啟動立刻篩一次（拉上一個 4H boundary 的收盤資料）+ 之後每日 00/04/08/12/16/20 UTC
-                AddUniverseSelection(new FilteredUniverseSelectionModel(
-                    DateRules.EveryDay(), new StartupTimeRule(),
-                    SymbolsRule, _symbolFilter, _warmUpProvider, UniverseSettings));
+                AddUniverseSelection(new FilteredUniverseSelectionModel(DateRules.EveryDay(), new StartupTimeRule(),SymbolsRule, _symbolFilter, _warmUpProvider, UniverseSettings));
             }
             else
             {
@@ -103,8 +100,8 @@ namespace SignalRadar.Algorithm
             SetExecution(new SignalExecutionModel(_sender, LiveMode, engulfingCandleAlpha));         
         }
 
+        /*
         private DateTime _lastDataLog = DateTime.MinValue;
-
         public override void OnData(Slice slice)
         {
             // 每 10 秒印一次資料流狀態（避免 Tick 級別 log 爆量）
@@ -113,6 +110,7 @@ namespace SignalRadar.Algorithm
             _lastDataLog = DateTime.UtcNow;
             Log($"[OnData] Time={slice.Time:HH:mm:ss} Ticks={slice.Ticks.Count} Bars={slice.Bars.Count} QuoteBars={slice.QuoteBars.Count}");
         }
+        */
 
         public override void OnEndOfAlgorithm()
         {

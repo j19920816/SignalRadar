@@ -21,7 +21,7 @@ namespace SignalRadar.Algorithm
                 var symbol = securty.Symbol.Value;
                 var queryCommand = $"select * from {symbol}_{resolution}s_1 Where TimeData between {Web.GenerateTimeStamp(DateTime.SpecifyKind(startDatetime, DateTimeKind.Utc))} and {Web.GenerateTimeStamp(DateTime.SpecifyKind(endDateTime, DateTimeKind.Utc))}  order by TimeData ASC";
 
-                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(DbConfig.DbConfig.GetConnectionString()) { ["Server"] = DbConfig.DbConfig.SERVER };
+                SqlConnectionStringBuilder builder = new SqlConnectionStringBuilder(DbConfig.GetConnectionString()) { ["Server"] = DbConfig.SERVER };
                 var dataTable = SelectDataTable(queryCommand, builder.ConnectionString);
 
                 string directoryPath = Config.Get("data-folder") + securityType.ToString().ToLower() + Path.DirectorySeparatorChar + brokerageName.ToLower() + Path.DirectorySeparatorChar + resolution.ToString().ToLower() + Path.DirectorySeparatorChar + symbol.ToLower() + Path.DirectorySeparatorChar;
