@@ -73,7 +73,7 @@ namespace SignalRadar.Algorithm.Execution
 
                     try
                     {
-                        //_sender.SendAsync(msg).Wait();
+                        _sender.SendAsync(msg).Wait();
                         algorithm.Log($"[Signal OK  ] {msg.StrategyId} {msg.Symbol} {msg.Side} TimeFrame={msg.TimeFrame} Price={msg.Price} Stop={msg.StopPrice} sent");
                     }
                     catch (Exception ex)

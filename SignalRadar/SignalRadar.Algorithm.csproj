@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
         <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
@@ -21,7 +21,6 @@
       <None Remove="Research.ipynb" />
     </ItemGroup>
     <ItemGroup>
-        <PackageReference Include="Binance.Net" Version="12.11.0" />
         <PackageReference Include="Microsoft.Data.SqlClient" Version="7.0.0" />
         <PackageReference Include="QuantConnect.Brokerages.Binance" Version="2.5.17654" />
         <PackageReference Include="QuantConnect.Lean" Version="2.5.*" />

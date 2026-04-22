@@ -137,7 +137,7 @@ namespace SignalRadar.Algorithm.Universe
             // 第三層：量能持續性 — OBV > SMA10(OBV)
             var isOverObv = filterData.Obv.Current.Value > filterData.ObvSma.Current.Value;
 
-            return isOverAmount;//isOverAmount && isTrend && isOverAvgAmount && isOverObv;
+            return isOverAmount && isTrend && isOverAvgAmount && isOverObv;
         }
     }
 }

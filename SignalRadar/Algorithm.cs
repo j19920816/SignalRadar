@@ -71,8 +71,8 @@ namespace SignalRadar.Algorithm
             // Live 模式才建立 TCP 連線，回測不需要
             if (LiveMode)
             {
-                //_sender = new TcpSignalSender("127.0.0.1", DateTime.Today.Year);
-                //_sender.ConnectAsync().Wait();
+                _sender = new TcpSignalSender("127.0.0.1", DateTime.Today.Year);
+                _sender.ConnectAsync().Wait();
             }
             else  
             {
