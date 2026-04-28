@@ -23,7 +23,7 @@ namespace SignalRadar.Algorithm.Alphas
     /// </summary>
     public class EngulfingCandlePatternAlpha : SignalAlphaBase
     {
-        private readonly TimeSpan _timeSpan = TimeSpan.FromMinutes(5);
+        private readonly TimeSpan _timeSpan = TimeSpan.FromMinutes(15);
         public override string StrategyId => "EngulfingCandle";
         public override string TimeFrame => _timeSpan.TotalMinutes.ToString();
 
@@ -33,8 +33,7 @@ namespace SignalRadar.Algorithm.Alphas
         private readonly SymbolFilterModel _symbolFilter;
         private readonly IWarmUpProvider _warmUpProvider;
 
-        public EngulfingCandlePatternAlpha(IWarmUpProvider warmUpProvider, SymbolFilterModel symbolFilter, string sourceId = null)
-            : base(sourceId)
+        public EngulfingCandlePatternAlpha(IWarmUpProvider warmUpProvider, SymbolFilterModel symbolFilter, string sourceId = null): base(sourceId)
         {
             _warmUpProvider = warmUpProvider;
             _symbolFilter = symbolFilter;

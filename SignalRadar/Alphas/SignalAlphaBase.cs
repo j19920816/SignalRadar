@@ -23,7 +23,6 @@ namespace SignalRadar.Algorithm.Alphas
         public abstract string TimeFrame { get; }
         public abstract decimal GetStopPrice(Symbol symbol);
 
-        protected bool BelongsToSource(Symbol symbol)
-            => _sourceId == null || UniverseSource.Belongs(symbol, _sourceId);
+        protected bool BelongsToSource(Symbol symbol) => _sourceId == null || UniverseSource.Belongs(symbol, _sourceId);
     }
 }
