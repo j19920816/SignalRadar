@@ -21,11 +21,11 @@ namespace SignalRadar.Algorithm.Alphas
     ///   看跌吞噬 → Insight.Down（建議做空）
     /// 本層只負責產生訊號，不下單也不送 TCP。
     /// </summary>
-    public class EngulfingCandlePatternAlpha : AlphaModel, ISignalAlpha
+    public class EngulfingCandlePatternAlpha : SignalAlphaBase
     {
         private readonly TimeSpan _timeSpan = TimeSpan.FromMinutes(5);
-        public string StrategyId => "EngulfingCandle";
-        public string TimeFrame => _timeSpan.TotalMinutes.ToString();
+        public override string StrategyId => "EngulfingCandle";
+        public override string TimeFrame => _timeSpan.TotalMinutes.ToString();
 
         // 每個 Symbol 各自維護一組指標與 K 棒視窗
         private readonly ConcurrentDictionary<Symbol, EngulfingData> _engulfingData = new();
@@ -33,7 +33,8 @@ namespace SignalRadar.Algorithm.Alphas
         private readonly SymbolFilterModel _symbolFilter;
         private readonly IWarmUpProvider _warmUpProvider;
 
-        public EngulfingCandlePatternAlpha(IWarmUpProvider warmUpProvider, SymbolFilterModel symbolFilter)
+        public EngulfingCandlePatternAlpha(IWarmUpProvider warmUpProvider, SymbolFilterModel symbolFilter, string sourceId = null)
+            : base(sourceId)
         {
             _warmUpProvider = warmUpProvider;
             _symbolFilter = symbolFilter;
@@ -106,6 +107,9 @@ namespace SignalRadar.Algorithm.Alphas
                     continue;
                 engulfingData.HasNewBar = false;
 
+                if (!BelongsToSource(symbol))
+                    continue;
+
                 if (!_symbolFilter.ActiveSymbols.Contains(symbol) /*|| !engulfingData.Engulfing.IsReady*/)
                     continue;
 
@@ -123,7 +127,7 @@ namespace SignalRadar.Algorithm.Alphas
         /// 取得止損價：前一根 K 棒的最低點。
         /// 由 SignalExecutionModel 在建立訊號時呼叫。
         /// </summary>
-        public decimal GetStopPrice(Symbol symbol)
+        public override decimal GetStopPrice(Symbol symbol)
         {
             if (!_engulfingData.TryGetValue(symbol, out var d) || !d.Bars.IsReady)
                 return 0;

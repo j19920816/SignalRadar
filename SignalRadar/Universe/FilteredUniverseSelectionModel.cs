@@ -23,6 +23,9 @@ namespace SignalRadar.Algorithm.Universe
     /// </summary>
     public class FilteredUniverseSelectionModel : ScheduledUniverseSelectionModel
     {
+        // 給 Alpha 訂閱用的來源識別字串。改名時 IDE 跳轉直接重構，避免散落各處的字面字串打錯。
+        public const string SourceId = "USDT_PERP_4H";
+
         // Lean 內部會把商品/法幣/CFD 走非 crypto 的 currency conversion 路徑，導致 EnsureCurrencyDataFeed 崩潰
         // （例如 NATGASUSDT、XPTUSDT、XAUUSDT）。從 SPDB 非加密市場動態推出這類 base asset 清單，
         // 之後 Binance 再上什麼 SILVERUSDT / PLATINUMUSDT 只要 Lean SPDB 有對應登記就會自動擋下，不用改程式碼。
@@ -124,7 +127,9 @@ namespace SignalRadar.Algorithm.Universe
             }
 
             // 3. 跑三層篩選（REST 拉 4H K 棒 → VolumeSMA / ADX / OBV），同步等結果回來
-            return filter.RunAsync(candidates, warmUpProvider).GetAwaiter().GetResult();
+            var selected = filter.RunAsync(candidates, warmUpProvider).GetAwaiter().GetResult();
+            UniverseSource.Set(SourceId, selected);
+            return selected;
         }
     }
 }

@@ -39,12 +39,12 @@ namespace SignalRadar.Algorithm.Universe
         /// 針對所有 candidate symbol 平行拉 100 根 4H K 棒，計算三層篩選後回傳入選清單。
         /// 每次重新 warm-up，不保留指標狀態，避免 Binance websocket 超量訂閱後指標斷鏈。
         /// </summary>
-        public async Task<HashSet<Symbol>> RunAsync(IEnumerable<Symbol> candidates, IWarmUpProvider warmUpProvider, int concurrency = 10)
+        public async Task<HashSet<Symbol>> RunAsync(IEnumerable<Symbol> candidates, IWarmUpProvider warmUpProvider, int currencyCount = 10)
         {
             var timespan = TimeSpan.FromHours(4);
             var results = new ConcurrentDictionary<Symbol, FilterData>();
 
-            using var throttle = new SemaphoreSlim(concurrency);
+            using var throttle = new SemaphoreSlim(currencyCount);
             var tasks = candidates.Select(async symbol =>
             {
                 await throttle.WaitAsync();

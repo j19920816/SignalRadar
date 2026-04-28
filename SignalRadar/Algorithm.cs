@@ -88,7 +88,9 @@ namespace SignalRadar.Algorithm
             }
 
             // Framework 三層組裝
-            var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(_warmUpProvider, _symbolFilter);
+            // Live 綁定 FilteredUniverseSelectionModel 的來源；回測無 UniverseSelectionModel，傳 null 不過濾來源
+            var alphaSourceId = LiveMode ? FilteredUniverseSelectionModel.SourceId : null;
+            var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(_warmUpProvider, _symbolFilter, alphaSourceId);
 
             // 第一層：AlphaModel — 偵測吞噬形態，產生 Insight（Up / Down）
             AddAlpha(engulfingCandleAlpha);
