@@ -34,7 +34,7 @@ namespace SignalRadar.Algorithm.Universe
     /// <summary>
     /// Binance crypto universe 共用工具，給各個 UniverseSelectionModel reuse：
     ///   - NonCryptoBases：Lean SPDB 非加密市場推出的商品/法幣/CFD base asset 清單，用來擋下 NATGASUSDT、XPTUSDT 這類會走商品換匯路徑害 EnsureCurrencyDataFeed 崩潰的 ticker
-    ///   - GetTradableUsdtPerpetuals：從 Giraffy SymbolsRule 撈所有可交易的 Binance USDT 永續合約 Symbol，過程中為 Lean SPDB 沒登記的新上幣即時補註
+    ///   - GetTradableCryptos：從 Giraffy SymbolsRule 撈所有可交易的 Binance USDT 計價 Symbol（spot 或 USDT 永續，由 SecurityType 決定），過程中為 Lean SPDB 沒登記的新上幣即時補註
     /// </summary>
     public static class BinanceCryptoUniverse
     {
@@ -77,18 +77,19 @@ namespace SignalRadar.Algorithm.Universe
         }
 
         /// <summary>
-        /// 從 Giraffy SymbolsRule 撈所有可交易的 Binance USDT 永續合約 Symbol。
-        ///   - 跳過非 USDT 計價合約
+        /// 從 Giraffy SymbolsRule 撈所有可交易的 Symbol。
+        ///   - securityType 由呼叫端決定（Crypto = spot / CryptoFuture = USDT 永續）
+        ///   - 跳過非 USDT 計價
         ///   - 跳過交割合約（ticker 含底線，例如 BTCUSDT_260626）
         ///   - 跳過商品/法幣/CFD base asset（NonCryptoBases）
         ///   - Lean 沒登記過的新上幣，依 Giraffy 的 TickPriceStep / QuantityStep 即時補進 SPDB，避免 SecurityService 建 Security 時 "Failed to resolve base currency" 崩潰
         /// </summary>
-        public static List<Symbol> GetTradableUsdtPerpetuals(SymbolsRule symbolsRule)
+        public static List<Symbol> GetTradableCryptos(SymbolsRule symbolsRule, SecurityType securityType)
         {
-            // 先撈 Lean 符號資料庫 (SPDB) 已知的 binance CryptoFuture ticker
+            // 先撈 Lean 符號資料庫 (SPDB) 已知的 binance ticker（依 securityType 區分 spot / 永續）
             var spdb = SymbolPropertiesDatabase.FromDataFolder();
             var known = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-            foreach (var kvp in spdb.GetSymbolPropertiesList(LeanMarket.Binance, SecurityType.CryptoFuture))
+            foreach (var kvp in spdb.GetSymbolPropertiesList(LeanMarket.Binance, securityType))
                 known.Add(kvp.Key.Symbol);
 
             var nonCryptoBases = NonCryptoBases;
@@ -127,10 +128,10 @@ namespace SignalRadar.Algorithm.Universe
                         minimumOrderSize: null,
                         priceMagnifier: 1m,
                         strikeMultiplier: 1m);
-                    spdb.SetEntry(LeanMarket.Binance, ticker, SecurityType.CryptoFuture, props);
+                    spdb.SetEntry(LeanMarket.Binance, ticker, securityType, props);
                 }
 
-                var symbol = Symbol.Create(ticker, SecurityType.CryptoFuture, LeanMarket.Binance);
+                var symbol = Symbol.Create(ticker, securityType, LeanMarket.Binance);
                 candidates.Add(symbol);
             }
 

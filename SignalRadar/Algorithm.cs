@@ -5,6 +5,7 @@ using Giraffy.CryptoExchange.RestCaller;
 using QuantConnect;
 using QuantConnect.Algorithm;
 using QuantConnect.Brokerages;
+using QuantConnect.Configuration;
 using QuantConnect.Data;
 using QuantConnect.Data.UniverseSelection;
 using SignalRadar.Algorithm.Alphas;
@@ -26,17 +27,11 @@ namespace SignalRadar.Algorithm
         public static RestApiCaller ApiCaller;
         public static SymbolsRule SymbolsRule = new SymbolsRule();
         private TcpSignalSender _sender;
-        private SymbolFilterModel _symbolFilter;
+        private SymbolFilterBase _symbolFilter;
         private IWarmUpProvider _warmUpProvider;
 
         public override void Initialize()
         {
-            // 取得個幣種規則
-            Giraffy.CryptoExchange.Exchange exchange = Giraffy.CryptoExchange.Exchange.BinanceUsdtFuture;
-            ExchangeManager.G_ExchangeManager.TryGetOrAdd(exchange, "", "", out ApiCaller, out _);
-            if (ApiCaller != null)
-                SymbolsRule = ApiCaller.GetSymbolsAsync().Result;
-
             // 時區：台北 (UTC+8)
             SetTimeZone("Asia/Taipei");
 
@@ -47,20 +42,32 @@ namespace SignalRadar.Algorithm
             SetCash("USDT", 100000);
 
             // 交易標的
-            // Live：用 ScheduledUniverseSelectionModel 每 4H 動態篩選 Binance USDT 永續合約
+            // Live：用 ScheduledUniverseSelectionModel 每 4H 動態篩選 Binance USDT 計價標的（spot 或永續，由 environment 決定）
             // 回測：只訂閱 BTC / ETH，避免資料量過大
             _warmUpProvider = new BinanceWarmUpProvider();
-            _symbolFilter = new SymbolFilterModel();
+            _symbolFilter = new LiquidityAdxObvFilter(nameof(LiquidityAdxObvFilter));
 
             if (LiveMode)
             {
+                // 由 Lean environment 判斷市場類型：含 "future" → USDT 永續，否則 spot
+                // 對應 environment：spot → live-binance、futures → live-futures-binance
+                var environment = Config.Get("environment");
+                var isSpot = !environment.Contains("future", StringComparison.OrdinalIgnoreCase);
+                var exchange = isSpot ? Giraffy.CryptoExchange.Exchange.Binance : Giraffy.CryptoExchange.Exchange.BinanceUsdtFuture;
+                var securityType = isSpot ? SecurityType.Crypto : SecurityType.CryptoFuture;
+
+                // 取得個幣種規則
+                ExchangeManager.G_ExchangeManager.TryGetOrAdd(exchange, "", "", out ApiCaller, out _);
+                if (ApiCaller != null)
+                    SymbolsRule = ApiCaller.GetSymbolsAsync().Result;
+
                 // 訂閱解析度： K 棒由 Consolidator 合成
                 // （Tick 也可用，但上次把 300+ 支 Tick 一次灌進 websocket 會被 cancel；
                 //   現在走 UniverseSelection 數量可控，若要換回 Tick，Alpha 的 Consolidator 也要同步改 TickConsolidator）
                 UniverseSettings.Resolution = Resolution.Second;
 
                 // 啟動立刻篩一次（拉上一個 4H boundary 的收盤資料）+ 之後每日 00/04/08/12/16/20 UTC
-                AddUniverseSelection(new FilteredUniverseSelectionModel(DateRules.EveryDay(), new StartupTimeRule(),SymbolsRule, _symbolFilter, _warmUpProvider, UniverseSettings));
+                AddUniverseSelection(new FilteredUniverseSelectionModel(DateRules.EveryDay(), new StartupTimeRule(), SymbolsRule, securityType, _symbolFilter, _warmUpProvider, UniverseSettings));
             }
             else
             {
@@ -88,8 +95,8 @@ namespace SignalRadar.Algorithm
             }
 
             // Framework 三層組裝
-            // Live 綁定 FilteredUniverseSelectionModel 的來源；回測無 UniverseSelectionModel，傳 null 不過濾來源
-            var alphaSourceId = LiveMode ? FilteredUniverseSelectionModel.SourceId : null;
+            // Live 綁定篩選器的來源 id；回測無 UniverseSelectionModel，傳 null 不過濾來源
+            var alphaSourceId = LiveMode ? _symbolFilter.SourceId : null;
             var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(_warmUpProvider, _symbolFilter, alphaSourceId);
 
             // 第一層：AlphaModel — 偵測吞噬形態，產生 Insight（Up / Down）

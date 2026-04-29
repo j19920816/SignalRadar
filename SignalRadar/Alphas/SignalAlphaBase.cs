@@ -2,6 +2,7 @@ using QuantConnect;
 using QuantConnect.Algorithm.Framework.Alphas;
 using SignalRadar.Algorithm.Interfaces;
 using SignalRadar.Algorithm.Universe;
+using System;
 
 namespace SignalRadar.Algorithm.Alphas
 {
@@ -21,6 +22,7 @@ namespace SignalRadar.Algorithm.Alphas
 
         public abstract string StrategyId { get; }
         public abstract string TimeFrame { get; }
+        public abstract TimeSpan TimeSpanBar { get; }
         public abstract decimal GetStopPrice(Symbol symbol);
 
         protected bool BelongsToSource(Symbol symbol) => _sourceId == null || UniverseSource.Belongs(symbol, _sourceId);

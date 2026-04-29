@@ -1,4 +1,5 @@
 using QuantConnect;
+using System;
 
 namespace SignalRadar.Algorithm.Interfaces
 {
@@ -6,6 +7,7 @@ namespace SignalRadar.Algorithm.Interfaces
     {
         string StrategyId { get; }
         string TimeFrame { get; }
+        TimeSpan TimeSpanBar { get; }
         decimal GetStopPrice(Symbol symbol);
     }
 }

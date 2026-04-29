@@ -23,17 +23,17 @@ namespace SignalRadar.Algorithm.Alphas
     /// </summary>
     public class EngulfingCandlePatternAlpha : SignalAlphaBase
     {
-        private readonly TimeSpan _timeSpan = TimeSpan.FromMinutes(15);
-        public override string StrategyId => "EngulfingCandle";
-        public override string TimeFrame => _timeSpan.TotalMinutes.ToString();
+        public override TimeSpan TimeSpanBar => TimeSpan.FromMinutes(5);
+        public override string StrategyId => nameof(EngulfingCandlePatternAlpha);
+        public override string TimeFrame => TimeSpanBar.TotalMinutes.ToString();
 
         // 每個 Symbol 各自維護一組指標與 K 棒視窗
         private readonly ConcurrentDictionary<Symbol, EngulfingData> _engulfingData = new();
 
-        private readonly SymbolFilterModel _symbolFilter;
+        private readonly SymbolFilterBase _symbolFilter;
         private readonly IWarmUpProvider _warmUpProvider;
 
-        public EngulfingCandlePatternAlpha(IWarmUpProvider warmUpProvider, SymbolFilterModel symbolFilter, string sourceId = null): base(sourceId)
+        public EngulfingCandlePatternAlpha(IWarmUpProvider warmUpProvider, SymbolFilterBase symbolFilter, string sourceId = null): base(sourceId)
         {
             _warmUpProvider = warmUpProvider;
             _symbolFilter = symbolFilter;
@@ -59,7 +59,7 @@ namespace SignalRadar.Algorithm.Alphas
                     // Live：REST 拉 3 根歷史 K 棒餵指標（Minute 訂閱等於即時 warm-up）
                     if (algorithm.LiveMode && _warmUpProvider != null)
                     {
-                        var bars = await _warmUpProvider.GetBarsAsync(symbol, _timeSpan, 3);
+                        var bars = await _warmUpProvider.GetBarsAsync(symbol, TimeSpanBar, 3);
                         foreach (var bar in bars)
                         {
                             engulfingData.Engulfing.Update(bar);
@@ -68,7 +68,7 @@ namespace SignalRadar.Algorithm.Alphas
                     }
 
                     // Minute 訂閱 → Consolidator 合成，兩邊模式共用
-                    var consolidator = new TradeBarConsolidator(_timeSpan);
+                    var consolidator = new TradeBarConsolidator(TimeSpanBar);
                     consolidator.DataConsolidated += OnDataConsolidated;
                     algorithm.SubscriptionManager.AddConsolidator(symbol, consolidator);
 
@@ -90,6 +90,7 @@ namespace SignalRadar.Algorithm.Alphas
             data.Engulfing.Update(bar);
             data.Bars.Add(bar);
             data.HasNewBar = true;
+            
         }
 
         /// <summary>
@@ -109,14 +110,14 @@ namespace SignalRadar.Algorithm.Alphas
                 if (!BelongsToSource(symbol))
                     continue;
 
-                if (!_symbolFilter.ActiveSymbols.Contains(symbol) /*|| !engulfingData.Engulfing.IsReady*/)
+                if (!_symbolFilter.ActiveSymbols.Contains(symbol) || !engulfingData.Engulfing.IsReady)
                     continue;
 
                 var value = engulfingData.Engulfing.Current.Value;
                 if (value > 0)
-                    yield return Insight.Price(symbol, _timeSpan, InsightDirection.Up);
+                    yield return Insight.Price(symbol, TimeSpanBar, InsightDirection.Up);
                 else if (value < 0)
-                    yield return Insight.Price(symbol, _timeSpan, InsightDirection.Down);
+                    yield return Insight.Price(symbol, TimeSpanBar, InsightDirection.Down);
             }
 
             //algorithm.Log($"[Alpha] Symbols={_data.Count} ActiveSet={_symbolFilter.ActiveSymbols.Count}");
