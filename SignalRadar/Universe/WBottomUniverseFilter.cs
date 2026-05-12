@@ -18,12 +18,12 @@ namespace SignalRadar.Algorithm.Universe
 
         public override void RegisterSymbol(QCAlgorithm algorithm, Symbol symbol)
         {
-            throw new NotImplementedException();
+            //throw new NotImplementedException();
         }
 
         protected override bool EvaluateBars(Symbol symbol, IEnumerable<TradeBar> bars)
         {
-            throw new NotImplementedException();
+            return true;
         }
     }
 }

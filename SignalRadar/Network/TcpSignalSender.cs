@@ -49,16 +49,9 @@ namespace SignalRadar.Algorithm.Network
 
         public async Task SendAsync(SignalMessage signal)
         {
-            try
-            {
-                var json = JsonSerializer.Serialize(signal, _jsonOptions);
-                var bytes = Encoding.UTF8.GetBytes(json);
-                await _client.SendAsync(bytes);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine($"[TcpSignalSender] 發送失敗: {ex.Message}");
-            }
+            var json = JsonSerializer.Serialize(signal, _jsonOptions);
+            var bytes = Encoding.UTF8.GetBytes(json);
+            await _client.SendAsync(bytes);
         }
 
         public void Dispose()

@@ -5,6 +5,8 @@ using SignalRadar.Algorithm.Signals;
 using QuantConnect.Algorithm.Framework.Execution;
 using QuantConnect.Algorithm.Framework.Portfolio;
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using QuantConnect.Algorithm;
 
 namespace SignalRadar.Algorithm.Execution
@@ -13,18 +15,20 @@ namespace SignalRadar.Algorithm.Execution
     /// 執行層：接收 PortfolioTarget，依模式決定行為。
     ///   回測：直接對 Lean 下市價單
     ///   Live ：把訊號序列化成 JSON 透過 TCP 送給下單機，送出後不再介入
+    /// 多 Alpha 並行時靠 target.Tag(由 PCM 從 Insight.SourceModel 帶過來)反查對應 alpha 取得 StrategyId / TimeFrame / StopPrice。
     /// </summary>
     public class SignalExecutionModel : ExecutionModel
     {
         private readonly TcpSignalSender _sender;
         private readonly bool _liveMode;
-        private readonly ISignalAlpha _alpha;   // 用來取得 StrategyId、TimeFrame、StopPrice
+        // key = StrategyId(= Alpha.Name = 類別名稱),value = 發訊號的 Alpha
+        private readonly IReadOnlyDictionary<string, ISignalAlpha> _alphas;
 
-        public SignalExecutionModel(TcpSignalSender sender, bool liveMode, ISignalAlpha alpha)
+        public SignalExecutionModel(TcpSignalSender sender, bool liveMode, IEnumerable<ISignalAlpha> alphas)
         {
             _sender = sender;
             _liveMode = liveMode;
-            _alpha = alpha;
+            _alphas = alphas.ToDictionary(a => a.StrategyId);
         }
 
         /// <summary>
@@ -55,31 +59,36 @@ namespace SignalRadar.Algorithm.Execution
 
                 if (_liveMode)
                 {
+                    // target.Tag = StrategyId(由 PCM 從 Insight.SourceModel 帶過來),反查對應 alpha
+                    // (Live 沒掛 RiskModel,所有 target 都應從我們自家 PCM 出來;tag 為空視為無 alpha 上下文跳過)
+                    if (string.IsNullOrEmpty(target.Tag) || !_alphas.TryGetValue(target.Tag, out var alpha))
+                        continue;
+
                     // Live：封裝成 SignalMessage 透過 TCP 送出，後續由下單機處理
                     var price = algorithm.Securities[symbol].Price;
-                    var stopPrice = _alpha.GetStopPrice(symbol);
+                    var stopPrice = alpha.GetStopPrice(symbol);
                     var side = diff > 0 ? Giraffy.CryptoExchange.Common.Side.Buy : Giraffy.CryptoExchange.Common.Side.Sell;
 
                     var msg = new SignalMessage
                     {
-                        StrategyId = _alpha.StrategyId,
+                        StrategyId = alpha.StrategyId,
                         Symbol = symbol.Value,
                         Side = side,
-                        TimeFrame = _alpha.TimeFrame,
+                        TimeFrame = alpha.TimeFrame,
                         Price = price,
                         StopPrice = stopPrice,
                         Timestamp = Web.GenerateTimeStamp(DateTime.UtcNow),
                     };
 
-                    try
+                    // Fire-and-forget：避免 TCP 卡住阻塞 Lean 主迴圈
+                    // 完成 / 失敗各自寫 log,不等送出結果
+                    _ = _sender.SendAsync(msg).ContinueWith(t =>
                     {
-                        _sender.SendAsync(msg).Wait();
-                        algorithm.Log($"[Signal OK  ] {msg.StrategyId} {msg.Symbol} {msg.Side} TimeFrame={msg.TimeFrame} Price={msg.Price} Stop={msg.StopPrice} sent");
-                    }
-                    catch (Exception ex)
-                    {
-                        algorithm.Error($"[Signal FAIL] {msg.Symbol} {msg.Side} → {ex.GetBaseException().Message}");
-                    }
+                        if (t.IsFaulted)
+                            algorithm.Error($"[Signal FAIL] {msg.Symbol} {msg.Side} → {t.Exception?.GetBaseException().Message}");
+                        else
+                            algorithm.Log($"[Signal OK  ] {msg.StrategyId} {msg.Symbol} {msg.Side} TimeFrame={msg.TimeFrame} Price={msg.Price} Stop={msg.StopPrice} sent");
+                    });
                 }
                 else
                 {

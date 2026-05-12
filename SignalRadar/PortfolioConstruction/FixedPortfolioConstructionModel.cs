@@ -39,7 +39,10 @@ namespace SignalRadar.PortfolioConstruction
 
                 // 目標數量 = ±（總資產 algorithm.Portfolio.TotalPortfolioValue(先設定10000) × 比例）/ 現價
                 var quantity = sign * (10000 * fraction) / price;
-                yield return new PortfolioTarget(insight.Symbol, quantity);
+
+                // tag 帶上 insight.SourceModel(= 發訊號的 Alpha 類別名稱 = StrategyId),
+                // ExecutionModel 才能在多 Alpha 並行時反查對應 alpha 拿 StrategyId / TimeFrame / StopPrice
+                yield return new PortfolioTarget(insight.Symbol, quantity, tag: insight.SourceModel);
             }
         }
     }

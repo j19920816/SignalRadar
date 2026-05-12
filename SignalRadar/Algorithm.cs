@@ -98,15 +98,18 @@ namespace SignalRadar.Algorithm
             // Live 綁定篩選器的來源 id；回測無 UniverseSelectionModel，傳 null 不過濾來源
             var alphaSourceId = LiveMode ? _symbolFilter.SourceId : null;
             var engulfingCandleAlpha = new EngulfingCandlePatternAlpha(_warmUpProvider, _symbolFilter, alphaSourceId);
+            var risingVolumeAlpha = new RisingWithIncreasingVolumeAlpha(_warmUpProvider, _symbolFilter, alphaSourceId);
 
-            // 第一層：AlphaModel — 偵測吞噬形態，產生 Insight（Up / Down）
+            // 第一層：AlphaModel — 多策略並行,Insight.SourceModel 由 Lean 自動填成 Alpha 類別名稱
             AddAlpha(engulfingCandleAlpha);
+            AddAlpha(risingVolumeAlpha);
 
             // 第二層：PCM — 把 Insight 轉成目標數量（總資產 × 10% / 現價）
             SetPortfolioConstruction(new FixedPortfolioConstructionModel());
 
             // 第三層：ExecutionModel — 回測下市價單，Live 送 TCP 訊號
-            SetExecution(new SignalExecutionModel(_sender, LiveMode, engulfingCandleAlpha));         
+            // 多 Alpha 透過 PortfolioTarget.Tag(= StrategyId)反查對應 alpha 取 StrategyId / TimeFrame / StopPrice
+            SetExecution(new SignalExecutionModel(_sender, LiveMode, new ISignalAlpha[] { engulfingCandleAlpha, risingVolumeAlpha }));
         }
 
         /*

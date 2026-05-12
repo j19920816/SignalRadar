@@ -8,8 +8,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="QuantConnect.Brokerages.Binance" Version="2.5.17654" />
-    <PackageReference Include="QuantConnect.Lean" Version="2.5.17654" />
+    <PackageReference Include="QuantConnect.Brokerages.Binance" Version="2.5.17677" />
+    <PackageReference Include="QuantConnect.Lean" Version="2.5.17677" />
   </ItemGroup>
 
   <ItemGroup>

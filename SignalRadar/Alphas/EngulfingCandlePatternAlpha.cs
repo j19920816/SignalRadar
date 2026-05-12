@@ -53,24 +53,10 @@ namespace SignalRadar.Algorithm.Alphas
                     if (_engulfingData.ContainsKey(symbol))
                         continue;
 
-                    var engulfingData = new EngulfingData { Engulfing = new Engulfing() };
-                    _engulfingData[symbol] = engulfingData;
+                    _engulfingData[symbol] = new EngulfingData { Engulfing = new Engulfing() };
 
-                    // Live：REST 拉 3 根歷史 K 棒餵指標（Minute 訂閱等於即時 warm-up）
-                    if (algorithm.LiveMode && _warmUpProvider != null)
-                    {
-                        var bars = await _warmUpProvider.GetBarsAsync(symbol, TimeSpanBar, 3);
-                        foreach (var bar in bars)
-                        {
-                            engulfingData.Engulfing.Update(bar);
-                            engulfingData.Bars.Add(bar);
-                        }
-                    }
-
-                    // Minute 訂閱 → Consolidator 合成，兩邊模式共用
-                    var consolidator = new TradeBarConsolidator(TimeSpanBar);
-                    consolidator.DataConsolidated += OnDataConsolidated;
-                    algorithm.SubscriptionManager.AddConsolidator(symbol, consolidator);
+                    // warm-up → consolidator 順序由 base class 鎖死
+                    await WarmUpAndAttachConsolidatorAsync(algorithm, symbol, _warmUpProvider, 3, FeedEngulfingWarmUpBar, OnDataConsolidated);
 
                     // 回測：Alpha 替每個 symbol 掛 4H Consolidator 給篩選器
                     // Live 篩選由 FilteredUniverseSelectionModel 透過 REST 跑，不需掛 Consolidator
@@ -84,13 +70,21 @@ namespace SignalRadar.Algorithm.Alphas
             }
         }
 
+        private void FeedEngulfingWarmUpBar(Symbol symbol, TradeBar bar)
+        {
+            var data = _engulfingData[symbol];
+            data.Engulfing.Update(bar);
+            data.Bars.Add(bar);
+        }
+
         private void OnDataConsolidated(object sender, TradeBar bar)
         {
-            var data = _engulfingData[bar.Symbol];
+            // symbol 已被 universe remove 但 consolidator 殘留 fire → TryGetValue 取不到就跳過
+            if (!_engulfingData.TryGetValue(bar.Symbol, out var data))
+                return;
             data.Engulfing.Update(bar);
             data.Bars.Add(bar);
             data.HasNewBar = true;
-            
         }
 
         /// <summary>
