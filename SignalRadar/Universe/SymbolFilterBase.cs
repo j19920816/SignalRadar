@@ -31,7 +31,7 @@ namespace SignalRadar.Algorithm.Universe
 
         /// <summary>
         /// Live 模式 — 每 4H 由 UniverseSelection 呼叫。
-        /// 針對所有 candidate symbol 平行拉 100 根 4H K 棒，呼叫子類別 EvaluateBars 判斷後回傳通過清單。
+        /// 針對所有 candidate symbol 平行拉指定數量的 4H K 棒，呼叫子類別 EvaluateBars 判斷後回傳通過清單。
         /// 每次重新 warm-up，不保留指標狀態，避免 Binance websocket 超量訂閱後指標斷鏈。
         /// </summary>
         public async Task<HashSet<Symbol>> RunAsync(IEnumerable<Symbol> candidates, IWarmUpProvider warmUpProvider, int concurrency = 10)
@@ -45,7 +45,7 @@ namespace SignalRadar.Algorithm.Universe
                 await throttle.WaitAsync();
                 try
                 {
-                    var bars = await warmUpProvider.GetBarsAsync(symbol, timespan, 100);
+                    var bars = await warmUpProvider.GetBarsAsync(symbol, timespan, 500);
                     if (EvaluateBars(symbol, bars))
                         passed.Add(symbol);
                 }
