@@ -74,38 +74,50 @@ namespace SignalRadar.Algorithm.Universe
             ActiveSymbols = active;
         }
 
-        private bool PassFilter(FilterData fd)
+        private bool PassFilter(FilterData filterData)
         {
-            if (!fd.Atr.IsReady)
+            // ATR 指標尚未預熱完成
+            if (!filterData.Atr.IsReady)
                 return false;
 
-            if (fd.Bars.Count < FRACTAL_RADIUS * 2 + MIN_PIVOT_GAP + 1)
+            // K 棒數量不足以識別完整 W 底形態
+            if (filterData.Bars.Count < FRACTAL_RADIUS * 2 + MIN_PIVOT_GAP + 1)
                 return false;
 
-            var low2 = FindRecentPivotLow(fd.Bars, MAX_LOW2_DISTANCE, FRACTAL_RADIUS);
+            var low2 = FindRecentPivotLow(filterData.Bars, MAX_LOW2_DISTANCE, FRACTAL_RADIUS);
+            // 最近 MAX_LOW2_DISTANCE 根內找不到 pivot low（low2）
             if (low2 == null)
                 return false;
 
-            var low1 = FindEarlierPivotLow(fd.Bars, low2.Value.Index, MIN_PIVOT_GAP, MAX_PIVOT_GAP, low2.Value.Low, FRACTAL_RADIUS);
+            var low1 = FindEarlierPivotLow(filterData.Bars, low2.Value.Index, MIN_PIVOT_GAP, MAX_PIVOT_GAP, low2.Value.Low, FRACTAL_RADIUS);
+            
+            // low2 往前找不到比它更低的 pivot low（low1）
             if (low1 == null)
                 return false;
 
-            var peak = FindPeakBetween(fd.Bars, low2.Value.Index, low1.Value.Index);
+            var peak = FindPeakBetween(filterData.Bars, low2.Value.Index, low1.Value.Index);
+
+            // 兩個低點之間找不到反彈高點
             if (peak == null)
                 return false;
 
             var twoLowsMax = low1.Value.Low > low2.Value.Low ? low1.Value.Low : low2.Value.Low;
+
+            // peak 未突破兩低點，不構成有效頸線
             if (peak.Value.High <= twoLowsMax)
                 return false;
 
             var distToLow2 = peak.Value.Index - low2.Value.Index;
             var distToLow1 = low1.Value.Index - peak.Value.Index;
             var nearestSide = distToLow2 < distToLow1 ? distToLow2 : distToLow1;
+
+            // peak 距最近低點太近（W 過尖）或太遠（W 過寬）
             if (nearestSide < MIN_PEAK_SIDE || nearestSide > MAX_PEAK_SIDE)
                 return false;
 
-            var lastClose = fd.Bars[0].Close;
-            if (peak.Value.High - lastClose > MAX_ATR_MULTIPLE_TO_PEAK * fd.Atr.Current.Value)
+            var lastClose = filterData.Bars[0].Close;
+            // 最新收盤距頸線（peak.High）超過 1.5 倍 ATR，突破訊號尚未成立
+            if (peak.Value.High - lastClose > MAX_ATR_MULTIPLE_TO_PEAK * filterData.Atr.Current.Value)
                 return false;
 
             return true;
@@ -113,8 +125,7 @@ namespace SignalRadar.Algorithm.Universe
 
         // RollingWindow 索引：[0] 最新、index 越大時間越早。
         // 「最近」= 索引較小、「往前」= 索引較大。
-
-        private static (int Index, decimal Low)? FindRecentPivotLow(RollingWindow<TradeBar> bars, int maxDistance, int radius)
+        private (int Index, decimal Low)? FindRecentPivotLow(RollingWindow<TradeBar> bars, int maxDistance, int radius)
         {
             var maxIndex = radius + maxDistance - 1;
             if (maxIndex > bars.Count - 1 - radius)
@@ -128,7 +139,7 @@ namespace SignalRadar.Algorithm.Universe
             return null;
         }
 
-        private static (int Index, decimal Low)? FindEarlierPivotLow(RollingWindow<TradeBar> bars, int afterIndex, int minGap, int maxGap, decimal mustBeLowerThan, int radius)
+        private (int Index, decimal Low)? FindEarlierPivotLow(RollingWindow<TradeBar> bars, int afterIndex, int minGap, int maxGap, decimal mustBeLowerThan, int radius)
         {
             var start = afterIndex + minGap;
             var end = afterIndex + maxGap;
@@ -146,7 +157,7 @@ namespace SignalRadar.Algorithm.Universe
             return null;
         }
 
-        private static (int Index, decimal High)? FindPeakBetween(RollingWindow<TradeBar> bars, int low2Index, int low1Index)
+        private (int Index, decimal High)? FindPeakBetween(RollingWindow<TradeBar> bars, int low2Index, int low1Index)
         {
             int peakIdx = -1;
             decimal peakHigh = decimal.MinValue;
@@ -163,7 +174,7 @@ namespace SignalRadar.Algorithm.Universe
             return (peakIdx, peakHigh);
         }
 
-        private static bool IsPivotLow(RollingWindow<TradeBar> bars, int index, int radius)
+        private bool IsPivotLow(RollingWindow<TradeBar> bars, int index, int radius)
         {
             var center = bars[index].Low;
             for (int k = 1; k <= radius; k++)
