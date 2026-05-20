@@ -2,14 +2,16 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="QuantConnect.Brokerages.Binance" Version="2.5.17677" />
-    <PackageReference Include="QuantConnect.Lean" Version="2.5.17677" />
+    <PackageReference Include="QuantConnect.Brokerages.Binance" Version="2.5.17699" />
+    <PackageReference Include="QuantConnect.Lean" Version="2.5.17699" />
+    <PackageReference Include="ScottPlot.WPF" Version="5.1.58" />
   </ItemGroup>
 
   <ItemGroup>

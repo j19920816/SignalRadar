@@ -13,10 +13,10 @@ flowchart TD
 
     Trigger --> SelectSymbols["FilteredUniverseSelectionModel\nSelectSymbols()"]
     SelectSymbols --> GetCandidates["BinanceCryptoUniverse.GetTradableCryptos()\n取得全部 USDT 永續合約 candidates"]
-    GetCandidates --> RunAsync["SymbolFilterBase.RunAsync()\nSemaphoreSlim — 最多 10 並行"]
+    GetCandidates --> RunAsync["SymbolFilterBase.RunAsync()\n SemaphoreSlim — 最多 10 並行"]
     RunAsync --> GetBars["IWarmUpProvider.GetBarsAsync()\n每個 candidate 拉 500 根 4H K 棒"]
     GetBars --> EvaluateBars["WBottomUniverseFilter.EvaluateBars()\n逐棒灌 ATR(14) + RollingWindow<TradeBar>(60)"]
-    EvaluateBars --> PassFilter["PassFilter() — 七步早返"]
+    EvaluateBars --> PassFilter["PassFilter() — 逐條驗證 W 底規則"]
     PassFilter --> FindLow2{"找最近 pivot low (low2)\n距最新 ≤ 5 根"}
     FindLow2 -->|"❌ 找不到"| Skip["略過"]
     FindLow2 -->|"✅"| FindLow1{"往前找更深 pivot low (low1)\n10 ≤ gap ≤ 40\nlow1.Low < low2.Low"}
@@ -77,7 +77,7 @@ protected override bool EvaluateBars(Symbol symbol, IEnumerable<TradeBar> bars)
 }
 ```
 
-### PassFilter — 七步早返
+### PassFilter — 逐條驗證 W 底規則
 
 ```csharp
 private bool PassFilter(FilterData fd)

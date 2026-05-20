@@ -26,6 +26,7 @@ namespace Launcher
             };
         }
 
+        [STAThread]
         static void Main(string[] args)
         {
             if (OS.IsWindows)
@@ -85,6 +86,13 @@ namespace Launcher
 
                 var engine = new Engine(leanEngineSystemHandlers, leanEngineAlgorithmHandlers, QuantConnect.Globals.LiveMode);
                 engine.Run(job, algorithmManager, assemblyPath, WorkerThread.Instance);
+
+                // 回測結束且正常完成：彈出 WPF K 線圖視窗，ShowDialog 阻塞直到使用者關閉
+                if (!QuantConnect.Globals.LiveMode && algorithmManager.State == AlgorithmStatus.Completed)
+                {
+                    var window = new Launcher.Charts.BacktestChartWindow();
+                    window.ShowDialog();
+                }
             }
             finally
             {

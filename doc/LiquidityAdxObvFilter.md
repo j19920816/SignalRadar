@@ -7,7 +7,6 @@
 ## 完整 Live 流程
 
 ```mermaid
-%%{init: {"theme": "default"}}%%
 flowchart TD
     Trigger["⏰ 每 4H 觸發\nUTC 00 / 04 / 08 / 12 / 16 / 20\n或啟動時立即執行一次"]
 

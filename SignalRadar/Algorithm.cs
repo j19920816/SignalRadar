@@ -7,6 +7,8 @@ using QuantConnect.Algorithm;
 using QuantConnect.Brokerages;
 using QuantConnect.Configuration;
 using QuantConnect.Data;
+using QuantConnect.Data.Consolidators;
+using QuantConnect.Data.Market;
 using QuantConnect.Data.UniverseSelection;
 using SignalRadar.Algorithm.Alphas;
 using SignalRadar.Algorithm.Backtest;
@@ -18,6 +20,10 @@ using SignalRadar.Algorithm.Universe;
 using SignalRadar.BacktestModels;
 using SignalRadar.PortfolioConstruction;
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.Json;
 #endregion
 
 namespace SignalRadar.Algorithm
@@ -29,6 +35,10 @@ namespace SignalRadar.Algorithm
         private TcpSignalSender _sender;
         private SymbolFilterBase _symbolFilter;
         private IWarmUpProvider _warmUpProvider;
+        private readonly ConcurrentDictionary<Symbol, List<TradeBar>> _backtestBars = new();
+        // 回測圖表的 K 棒週期：與策略 alpha 的 TimeSpanBar 解耦，畫圖另外決定
+        // 之後若想改 1H/1D 看不同尺度，改這一行即可
+        private readonly TimeSpan _chartBarPeriod = TimeSpan.FromHours(4);
 
         public override void Initialize()
         {
@@ -112,6 +122,23 @@ namespace SignalRadar.Algorithm
             SetExecution(new SignalExecutionModel(_sender, LiveMode, new ISignalAlpha[] { engulfingCandleAlpha, risingVolumeAlpha }));
         }
 
+        public override void OnSecuritiesChanged(SecurityChanges changes)
+        {
+            // 回測專用：每個新加入的 symbol 掛 4H Consolidator 收 K 棒，供結束時序列化給圖表用
+            if (LiveMode) 
+                return;
+            foreach (var security in changes.AddedSecurities)
+            {
+                var symbol = security.Symbol;
+                if (!_backtestBars.TryAdd(symbol, new List<TradeBar>())) 
+                    continue;
+
+                var consolidator = new TradeBarConsolidator(_chartBarPeriod);
+                consolidator.DataConsolidated += (_, bar) => _backtestBars[symbol].Add((TradeBar)bar);
+                SubscriptionManager.AddConsolidator(symbol, consolidator);
+            }
+        }
+
         /*
         private DateTime _lastDataLog = DateTime.MinValue;
         public override void OnData(Slice slice)
@@ -128,6 +155,31 @@ namespace SignalRadar.Algorithm
         {
             // 演算法結束時關閉 TCP 連線
             _sender?.Dispose();
+
+            // 回測：把蒐集到的 K 棒寫到 bin 輸出目錄，給 Launcher 端的 WPF 圖表讀取
+            if (!LiveMode)
+            {
+                var dict = new Dictionary<string, List<object>>();
+                foreach (var kvp in _backtestBars)
+                {
+                    var bars = new List<object>(kvp.Value.Count);
+                    foreach (var b in kvp.Value)
+                    {
+                        bars.Add(new
+                        {
+                            t = b.Time,
+                            o = b.Open,
+                            h = b.High,
+                            l = b.Low,
+                            c = b.Close,
+                            v = b.Volume
+                        });
+                    }
+                    dict[kvp.Key.Value] = bars;
+                }
+                var path = Path.Combine(AppContext.BaseDirectory, "backtest-bars.json");
+                File.WriteAllText(path, JsonSerializer.Serialize(dict));
+            }
         }
     }
 }
